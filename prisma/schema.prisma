@@ -4,5 +4,75 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  posts       Post[]
+  comments    Comment[]
+  votes       Vote[]
+  communities Community[] @relation("CommunityOwner")
+}
+
+model Community {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  ownerId String
+  owner   User   @relation("CommunityOwner", fields: [ownerId], references: [id])
+
+  posts Post[]
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  createdAt DateTime @default(now())
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id])
+
+  comments Comment[]
+  votes    Vote[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  postId String
+  post   Post   @relation(fields: [postId], references: [id])
+
+  parentId String?
+  parent   Comment?  @relation("CommentTree", fields: [parentId], references: [id])
+  replies  Comment[] @relation("CommentTree")
+}
+
+model Vote {
+  id    String @id @default(cuid())
+  value Int // 1 o -1
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  postId String
+  post   Post   @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId])
 }
