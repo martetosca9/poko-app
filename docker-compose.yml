@@ -1,10 +1,8 @@
 version: "3.9"
-
 services:
   db:
     image: postgres:16
     container_name: poko-postgres
-    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -12,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - poko-postgres-data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  poko-postgres-data:
+  postgres_data:
