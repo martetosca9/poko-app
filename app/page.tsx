@@ -1,5 +1,7 @@
 "use client";
 
+import AsciiBot from "@/components/AsciiBot";
+import { SendHorizontal } from "lucide-react";
 import { useState } from "react";
 
 export default function Home() {
@@ -32,14 +34,18 @@ export default function Home() {
             ☰
           </button>
           <h1 className="text-sm font-medium tracking-wide text-neutral-200">
-            My Chatbot
+            Poko-app
           </h1>
         </header>
 
         {/* Messages */}
         <section className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+          {/* Poko waiting */}
+          <div className="max-w-[80%] text-[10px] leading-none text-neutral-300">
+            <AsciiBot state="waiting" />
+          </div>
           <div className="max-w-[80%] rounded-none bg-neutral-800 px-4 py-3 text-sm">
-            Hello. How can I help you today?
+            Ask any question...
           </div>
           <div className="ml-auto max-w-[80%] rounded-none bg-neutral-700 px-4 py-3 text-sm">
             test
@@ -58,7 +64,7 @@ export default function Home() {
               type="submit"
               className="rounded-none bg-neutral-700 px-4 py-3 text-sm font-medium hover:bg-neutral-600"
             >
-              Send
+            <SendHorizontal />
             </button>
           </form>
         </footer>
