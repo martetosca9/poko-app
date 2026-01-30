@@ -1,11 +1,66 @@
-"use client";
+"use client"
 
-import AsciiBot from "@/components/AsciiBot";
-import { SendHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useState } from "react"
+import { nanoid } from "nanoid"
+
+import AsciiBot from "@/components/AsciiBot"
+import AsciiLogo from "@/components/AsciiLogo"
+import ChatMessages from "@/components/ChatMessages"
+import ChatInput from "@/components/ChatInput"
+
+type Message = {
+  id: string
+  role: "user" | "assistant"
+  content: string
+}
 
 export default function Home() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: nanoid(),
+      role: "assistant",
+      content: "Ask any question..."
+    }
+  ])
+
+  async function handleSend(text: string) {
+    const userMessage: Message = {
+      id: nanoid(),
+      role: "user",
+      content: text
+    }
+
+    setMessages(prev => [...prev, userMessage])
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text })
+      })
+
+      const data = await res.json()
+
+      const assistantMessage: Message = {
+        id: nanoid(),
+        role: "assistant",
+        content: data.reply
+      }
+
+      setMessages(prev => [...prev, assistantMessage])
+    } catch (err) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: nanoid(),
+          role: "assistant",
+          content: "Error talking to the AI."
+        }
+      ])
+    }
+  }
 
   return (
     <div className="flex h-screen w-full bg-neutral-950 text-neutral-100">
@@ -34,41 +89,26 @@ export default function Home() {
             ☰
           </button>
           <h1 className="text-sm font-medium tracking-wide text-neutral-200">
-            Poko-app
+            <AsciiLogo />
           </h1>
         </header>
 
         {/* Messages */}
-        <section className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-          {/* Poko waiting */}
-          <div className="max-w-[80%] text-[10px] leading-none text-neutral-300">
-            <AsciiBot state="waiting" />
+        <div className="flex-1 overflow-hidden">
+          <div className="px-4 pt-4">
+            <div className="max-w-[80%] text-[10px] leading-none text-neutral-300">
+              <AsciiBot state="waiting" />
+            </div>
           </div>
-          <div className="max-w-[80%] rounded-none bg-neutral-800 px-4 py-3 text-sm">
-            Ask any question...
-          </div>
-          <div className="ml-auto max-w-[80%] rounded-none bg-neutral-700 px-4 py-3 text-sm">
-            test
-          </div>
-        </section>
+
+          <ChatMessages messages={messages} />
+        </div>
 
         {/* Input */}
         <footer className="border-t border-neutral-800 px-4 py-3">
-          <form className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Type your message..."
-              className="flex-1 rounded-none bg-neutral-800 px-4 py-3 text-sm text-neutral-100 placeholder-neutral-500 outline-none focus:ring-1 focus:ring-neutral-600"
-            />
-            <button
-              type="submit"
-              className="rounded-none bg-neutral-700 px-4 py-3 text-sm font-medium hover:bg-neutral-600"
-            >
-            <SendHorizontal />
-            </button>
-          </form>
+          <ChatInput onSend={handleSend} />
         </footer>
       </main>
     </div>
-  );
+  )
 }
