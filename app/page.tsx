@@ -7,6 +7,7 @@ import AsciiBot from "@/components/AsciiBot"
 import AsciiLogo from "@/components/AsciiLogo"
 import ChatMessages from "@/components/ChatMessages"
 import ChatInput from "@/components/ChatInput"
+import AppHeader from "@/components/AppHeader"
 
 type Message = {
   id: string
@@ -16,6 +17,7 @@ type Message = {
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph">("chat")
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -64,51 +66,78 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-full bg-neutral-950 text-neutral-100">
-      {/* Sidebar */}
-      {sidebarOpen && (
-        <aside className="w-64 border-r border-neutral-800 bg-neutral-900 p-4">
-          <h2 className="mb-4 text-sm font-medium text-neutral-300">
-            Conversations
-          </h2>
-          <ul className="space-y-2 text-sm text-neutral-400">
-            <li className="cursor-pointer hover:text-neutral-200">Chat 1</li>
-            <li className="cursor-pointer hover:text-neutral-200">Chat 2</li>
-            <li className="cursor-pointer hover:text-neutral-200">Chat 3</li>
-          </ul>
-        </aside>
-      )}
+      {/* ===== HEADER GLOBAL (FIJO, NO SE MUEVE) ===== */}
+      <AppHeader
+        active={activeSection}
+        onChange={setActiveSection}
+      />
 
-      {/* Main Chat Area */}
-      <main className="flex flex-1 flex-col bg-neutral-900">
-        {/* Header */}
-        <header className="flex items-center gap-3 border-b border-neutral-800 px-4 py-3">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-neutral-400 hover:text-neutral-200"
-          >
-            ☰
-          </button>
-          <h1 className="text-sm font-medium tracking-wide text-neutral-200">
-            <AsciiLogo />
-          </h1>
-        </header>
+      {/* ===== CONTENIDO DEBAJO DEL HEADER ===== */}
+      <div className="flex w-full pt-10">
+        {/* Sidebar */}
+        {sidebarOpen && (
+          <aside className="w-64 border-r border-neutral-800 bg-neutral-900 p-4">
+            <h2 className="mb-4 text-sm font-medium text-neutral-300">
+              Conversations
+            </h2>
+            <ul className="space-y-2 text-sm text-neutral-400">
+              <li className="cursor-pointer hover:text-neutral-200">Chat 1</li>
+              <li className="cursor-pointer hover:text-neutral-200">Chat 2</li>
+              <li className="cursor-pointer hover:text-neutral-200">Chat 3</li>
+            </ul>
+          </aside>
+        )}
 
-        {/* Messages */}
-        <div className="flex-1 overflow-hidden">
-          <div className="px-4 pt-4">
-            <div className="max-w-[80%] text-[10px] leading-none text-neutral-300">
-              <AsciiBot state="waiting" />
+        {/* Main Area */}
+        <main className="flex flex-1 flex-col bg-neutral-900">
+          {/* Sub-header interno del área (muy fino) */}
+          <header className="flex items-center gap-3 border-b border-neutral-800 px-4 py-2">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="text-neutral-400 hover:text-neutral-200"
+            >
+              ☰
+            </button>
+            <h1 className="text-sm font-medium tracking-wide text-neutral-200">
+              {activeSection === "chat" && "Chat"}
+              {activeSection === "docs" && "Documents"}
+              {activeSection === "graph" && "Graph"}
+            </h1>
+          </header>
+
+          {/* ===== CONTENIDO POR SECCIÓN ===== */}
+
+          {activeSection === "chat" && (
+            <>
+              <div className="flex-1 overflow-hidden">
+                <div className="px-4 pt-4">
+                  <div className="max-w-[80%] text-[10px] leading-none text-neutral-300">
+                    <AsciiBot state="waiting" />
+                  </div>
+                </div>
+
+                <ChatMessages messages={messages} />
+              </div>
+
+              <footer className="border-t border-neutral-800 px-4 py-3">
+                <ChatInput onSend={handleSend} />
+              </footer>
+            </>
+          )}
+
+          {activeSection === "docs" && (
+            <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">
+              Documents section (coming soon)
             </div>
-          </div>
+          )}
 
-          <ChatMessages messages={messages} />
-        </div>
-
-        {/* Input */}
-        <footer className="border-t border-neutral-800 px-4 py-3">
-          <ChatInput onSend={handleSend} />
-        </footer>
-      </main>
+          {activeSection === "graph" && (
+            <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">
+              Graph view (coming soon)
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   )
 }
