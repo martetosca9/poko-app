@@ -8,6 +8,7 @@ import AsciiLogo from "@/components/AsciiLogo"
 import ChatMessages from "@/components/ChatMessages"
 import ChatInput from "@/components/ChatInput"
 import AppHeader from "@/components/AppHeader"
+import Sidebar from "@/components/Sidebar"
 
 type Message = {
   id: string
@@ -75,18 +76,7 @@ export default function Home() {
       {/* ===== CONTENIDO DEBAJO DEL HEADER ===== */}
       <div className="flex w-full pt-10">
         {/* Sidebar */}
-        {sidebarOpen && (
-          <aside className="w-64 border-r border-neutral-800 bg-neutral-900 p-4">
-            <h2 className="mb-4 text-sm font-medium text-neutral-300">
-              Conversations
-            </h2>
-            <ul className="space-y-2 text-sm text-neutral-400">
-              <li className="cursor-pointer hover:text-neutral-200">Chat 1</li>
-              <li className="cursor-pointer hover:text-neutral-200">Chat 2</li>
-              <li className="cursor-pointer hover:text-neutral-200">Chat 3</li>
-            </ul>
-          </aside>
-        )}
+        {sidebarOpen && <Sidebar activeSection={activeSection} />}
 
         {/* Main Area */}
         <main className="flex flex-1 flex-col bg-neutral-900">
