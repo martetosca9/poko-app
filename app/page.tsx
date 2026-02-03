@@ -9,6 +9,8 @@ import ChatMessages from "@/components/ChatMessages"
 import ChatInput from "@/components/ChatInput"
 import AppHeader from "@/components/AppHeader"
 import Sidebar from "@/components/Sidebar"
+import DocumentsSection from "@/components/DocumentsSection";
+
 
 type Message = {
   id: string
@@ -16,9 +18,33 @@ type Message = {
   content: string
 }
 
+type Doc = {
+  id: string;
+  title: string;
+};
+
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph">("chat")
+  const [documents, setDocuments] = useState<Doc[]>([]);
+
+  function createDocument() {
+    const untitledCount =
+      documents.filter(doc => doc.title.startsWith("Untitled")).length + 1;
+
+    const newDoc = {
+      id: nanoid(),
+      title: untitledCount === 1 ? "Untitled" : `Untitled ${untitledCount}`,
+    };
+
+    setDocuments((prev) => [...prev, newDoc]);
+  }
+
+
+  function openDocument(id: string) {
+    console.log("Open document:", id);
+  }
+
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -116,10 +142,13 @@ export default function Home() {
           )}
 
           {activeSection === "docs" && (
-            <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">
-              Documents section (coming soon)
-            </div>
+            <DocumentsSection
+              documents={documents}
+              onCreate={createDocument}
+              onOpen={openDocument}
+            />
           )}
+
 
           {activeSection === "graph" && (
             <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">
