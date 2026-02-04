@@ -106,7 +106,6 @@ export default function Home() {
 
         {/* Main Area */}
         <main className="flex flex-1 flex-col bg-neutral-900">
-          {/* Sub-header interno del área (muy fino) */}
           <header className="flex items-center gap-3 border-b border-neutral-800 px-4 py-2">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -145,7 +144,6 @@ export default function Home() {
             <DocumentsSection
               documents={documents}
               onCreate={createDocument}
-              onOpen={openDocument}
             />
           )}
 
