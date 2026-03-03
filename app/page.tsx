@@ -28,6 +28,8 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph" | "profile">("chat")
   const [documents, setDocuments] = useState<Doc[]>([]);
+  const [botState, setBotState] = useState<"waiting" | "thinking" | "talking" | "researching">("waiting")
+
 
   function createDocument() {
     const untitledCount =
@@ -54,13 +56,9 @@ export default function Home() {
   ])
 
   async function handleSend(text: string) {
-    const userMessage: Message = {
-      id: nanoid(),
-      role: "user",
-      content: text
-    }
-
+    const userMessage: Message = { id: nanoid(), role: "user", content: text }
     setMessages(prev => [...prev, userMessage])
+    setBotState("thinking")
 
     try {
       const res = await fetch("/api/chat", {
@@ -68,25 +66,13 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text })
       })
-
       const data = await res.json()
-
-      const assistantMessage: Message = {
-        id: nanoid(),
-        role: "assistant",
-        content: data.reply
-      }
-
+      const assistantMessage: Message = { id: nanoid(), role: "assistant", content: data.reply }
       setMessages(prev => [...prev, assistantMessage])
+      setBotState("talking")
     } catch (err) {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: nanoid(),
-          role: "assistant",
-          content: "Error talking to the AI."
-        }
-      ])
+      setMessages(prev => [...prev, { id: nanoid(), role: "assistant", content: "Error talking to the AI." }])
+      setBotState("waiting")
     }
   }
 
@@ -123,20 +109,20 @@ export default function Home() {
           {/* ===== CONTENIDO POR SECCIÓN ===== */}
 
           {activeSection === "chat" && (
-  <>
-    <div className="flex-1 overflow-hidden flex flex-col">
-      <div className="flex-1 overflow-hidden max-w-3xl w-full">
-        <ChatMessages messages={messages} />
-      </div>
-    </div>
+            <>
+              <div className="flex-1 overflow-hidden flex flex-col">
+                <div className="flex-1 overflow-hidden max-w-3xl w-full">
+                <ChatMessages messages={messages} botState={botState} onTalkingDone={() => setBotState("waiting")} />
+                </div>
+              </div>
 
-    <footer className="border-t border-neutral-800 px-4 py-3">
-      <div className="max-w-3xl">
-        <ChatInput onSend={handleSend} />
-      </div>
-    </footer>
-  </>
-)}
+              <footer className="border-t border-neutral-800 px-4 py-3">
+                <div className="max-w-3xl">
+                  <ChatInput onSend={handleSend} />
+                </div>
+              </footer>
+            </>
+          )}
 
           {activeSection === "docs" && (
             <DocumentsSection
