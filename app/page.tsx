@@ -9,7 +9,8 @@ import ChatMessages from "@/components/ChatMessages"
 import ChatInput from "@/components/ChatInput"
 import AppHeader from "@/components/AppHeader"
 import Sidebar from "@/components/Sidebar"
-import DocumentsSection from "@/components/DocumentsSection";
+import DocumentsSection from "@/components/DocumentsSection"
+import ProfileSection from "@/components/ProfileSection"
 
 
 type Message = {
@@ -25,7 +26,7 @@ type Doc = {
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph">("chat")
+  const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph" | "profile">("chat")
   const [documents, setDocuments] = useState<Doc[]>([]);
 
   function createDocument() {
@@ -40,11 +41,9 @@ export default function Home() {
     setDocuments((prev) => [...prev, newDoc]);
   }
 
-
   function openDocument(id: string) {
     console.log("Open document:", id);
   }
-
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -117,6 +116,7 @@ export default function Home() {
               {activeSection === "chat" && "Chat"}
               {activeSection === "docs" && "Documents"}
               {activeSection === "graph" && "Graph"}
+              {activeSection === "profile" && "Profile"}
             </h1>
           </header>
 
@@ -147,10 +147,15 @@ export default function Home() {
             />
           )}
 
-
           {activeSection === "graph" && (
             <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">
               Graph view (coming soon)
+            </div>
+          )}
+
+          {activeSection === "profile" && (
+            <div className="flex flex-1 items-center justify-center">
+              <ProfileSection />
             </div>
           )}
         </main>

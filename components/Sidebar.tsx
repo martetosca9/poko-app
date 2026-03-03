@@ -1,7 +1,7 @@
 "use client";
 
 type Props = {
-    activeSection: "chat" | "docs" | "graph";
+    activeSection: "chat" | "docs" | "graph" | "profile";
 };
 
 export default function Sidebar({ activeSection }: Props) {
@@ -11,6 +11,7 @@ export default function Sidebar({ activeSection }: Props) {
                 {activeSection === "chat" && "Conversations"}
                 {activeSection === "docs" && "Documents"}
                 {activeSection === "graph" && "Graph"}
+                {activeSection === "profile" && "Profile"}
             </h2>
 
             {activeSection === "chat" && (
