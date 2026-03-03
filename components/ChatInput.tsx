@@ -1,6 +1,5 @@
 "use client"
 
-import { SendHorizontal } from "lucide-react"
 import { useState } from "react"
 
 type ChatInputProps = {
@@ -10,31 +9,23 @@ type ChatInputProps = {
 export default function ChatInput({ onSend }: ChatInputProps) {
     const [input, setInput] = useState("")
 
-    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-        e.preventDefault()
-
-        if (!input.trim()) return
-
-        onSend(input)
-        setInput("")
+    function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+        if (e.key === "Enter" && input.trim()) {
+            onSend(input)
+            setInput("")
+        }
     }
 
     return (
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <div className="flex items-center gap-2 border border-neutral-700 bg-neutral-950 px-4 py-3 focus-within:border-neutral-500">
+            <span className="text-neutral-500 select-none">{">"}</span>
             <input
                 value={input}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setInput(e.target.value)
-                }
-                placeholder="Type your message..."
-                className="flex-1 bg-neutral-800 px-4 py-3 text-sm outline-none"
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="..."
+                className="flex-1 bg-transparent text-sm text-neutral-200 outline-none placeholder:text-neutral-600 caret-green-400"
             />
-            <button
-                type="submit"
-                className="bg-neutral-700 px-4 py-3"
-            >
-                <SendHorizontal />
-            </button>
-        </form>
+        </div>
     )
 }

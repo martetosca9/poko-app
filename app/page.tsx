@@ -123,22 +123,20 @@ export default function Home() {
           {/* ===== CONTENIDO POR SECCIÓN ===== */}
 
           {activeSection === "chat" && (
-            <>
-              <div className="flex-1 overflow-hidden">
-                <div className="px-4 pt-4">
-                  <div className="max-w-[80%] text-[10px] leading-none text-neutral-300">
-                    <AsciiBot state="waiting" />
-                  </div>
-                </div>
+  <>
+    <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-hidden max-w-3xl w-full">
+        <ChatMessages messages={messages} />
+      </div>
+    </div>
 
-                <ChatMessages messages={messages} />
-              </div>
-
-              <footer className="border-t border-neutral-800 px-4 py-3">
-                <ChatInput onSend={handleSend} />
-              </footer>
-            </>
-          )}
+    <footer className="border-t border-neutral-800 px-4 py-3">
+      <div className="max-w-3xl">
+        <ChatInput onSend={handleSend} />
+      </div>
+    </footer>
+  </>
+)}
 
           {activeSection === "docs" && (
             <DocumentsSection
