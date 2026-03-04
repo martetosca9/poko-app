@@ -24,10 +24,14 @@ function TypewriterMessage({ message, onDone }: { message: Message, onDone?: () 
     const [stopped, setStopped] = useState(animatedIds.has(message.id))
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const stableOnDone = useCallback(() => onDone?.(), [onDone])
+    const audioRef = useRef<HTMLAudioElement | null>(null)
 
     useEffect(() => {
         if (message.role === "user") return
         if (animatedIds.has(message.id)) return
+
+        audioRef.current = new Audio("/sounds/537033__fivebrosstopmosyt__ui-menu-close-2.wav")
+        audioRef.current.volume = 0.3
 
         setDisplayed("")
         setStopped(false)
@@ -36,10 +40,24 @@ function TypewriterMessage({ message, onDone }: { message: Message, onDone?: () 
         intervalRef.current = setInterval(() => {
             i++
             setDisplayed(message.content.slice(0, i))
+
+            if (i % 3 === 0 && audioRef.current) {
+                const progress = i / message.content.length
+                audioRef.current.volume = Math.max(0.02, 0.3 * (1 - progress))
+                audioRef.current.currentTime = 0
+                audioRef.current.play().catch(() => {})
+            }
+            
             if (i >= message.content.length) {
                 clearInterval(intervalRef.current!)
                 animatedIds.add(message.id)
                 setStopped(true)
+                // sonido final con volumen normal
+                if (audioRef.current) {
+                    audioRef.current.volume = 0.3
+                    audioRef.current.currentTime = 0
+                    audioRef.current.play().catch(() => {})
+                }
                 stableOnDone()
             }
         }, 18)

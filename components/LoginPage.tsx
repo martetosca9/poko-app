@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { LOGIN_TITLE, REGISTER_TITLE } from "@/lib/ascii-titles"
 
 type Mode = "login" | "register"
 
@@ -46,30 +47,53 @@ export default function LoginPage({ onSuccess }: Props) {
         }
     }
 
+    const playClick = () => {
+        const audio = new Audio("/sounds/617256__cpfcfan10__quick-computer-mouse-scroll.wav")
+        audio.volume = 0.5
+        audio.play().catch(() => {})
+    }
+
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-neutral-950">
+        <div className="flex h-screen w-full flex-col items-center justify-center bg-neutral-950 px-8">
+
+            {/* Títulos ASCII lado a lado */}
+            <div className="mb-10 flex gap-16 overflow-x-auto">
+                <pre
+                    onClick={() => { playClick(); setMode("login"); setError("") }}
+                    className={`cursor-pointer text-[9px] leading-tight transition-all select-none ${
+                        mode === "login"
+                            ? "text-green-400 drop-shadow-[0_0_8px_#22c55e]"
+                            : "text-neutral-700 hover:text-neutral-500"
+                    }`}
+                >
+                    {LOGIN_TITLE}
+                </pre>
+
+                <pre
+                    onClick={() => { playClick(); setMode("register"); setError("") }}
+                    className={`cursor-pointer text-[9px] leading-tight transition-all select-none ${
+                        mode === "register"
+                            ? "text-green-400 drop-shadow-[0_0_8px_#22c55e]"
+                            : "text-neutral-700 hover:text-neutral-500"
+                    }`}
+                >
+                    {REGISTER_TITLE}
+                </pre>
+            </div>
+
+            {/* Form */}
             <div className="w-full max-w-sm border border-neutral-800 bg-neutral-900 p-8">
-
-                {/* Header */}
-                <div className="mb-8 text-center">
-                    <p className="text-xs text-neutral-500">poko v0.1</p>
-                    <h1 className="mt-1 text-2xl text-neutral-100">
-                        {mode === "login" ? "sign in" : "register"}
-                    </h1>
-                </div>
-
-                {/* Campos */}
                 <div className="space-y-4">
-                    {mode === "register" && (
-                        <div>
-                            <label className="text-xs text-neutral-500">{">"} name</label>
-                            <input
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="mt-1 w-full border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 outline-none caret-green-400 focus:border-neutral-500"
-                            />
-                        </div>
-                    )}
+
+                    {/* name - siempre ocupa espacio, solo se oculta */}
+                    <div style={{ visibility: mode === "register" ? "visible" : "hidden" }}>
+                        <label className="text-xs text-neutral-500">{">"} name</label>
+                        <input
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="mt-1 w-full border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 outline-none caret-green-400 focus:border-neutral-500"
+                        />
+                    </div>
 
                     <div>
                         <label className="text-xs text-neutral-500">{">"} email</label>
@@ -93,12 +117,10 @@ export default function LoginPage({ onSuccess }: Props) {
                     </div>
                 </div>
 
-                {/* Error */}
                 {error && (
                     <p className="mt-4 text-xs text-red-400">{"> "}{error}</p>
                 )}
 
-                {/* Botón */}
                 <button
                     onClick={handleSubmit}
                     disabled={loading}
@@ -106,17 +128,6 @@ export default function LoginPage({ onSuccess }: Props) {
                 >
                     {loading ? "..." : mode === "login" ? "[ enter ]" : "[ register ]"}
                 </button>
-
-                {/* Toggle */}
-                <p className="mt-4 text-center text-xs text-neutral-600">
-                    {mode === "login" ? "no account? " : "have account? "}
-                    <button
-                        onClick={() => { setMode(mode === "login" ? "register" : "login"); setError("") }}
-                        className="text-neutral-400 hover:text-neutral-200"
-                    >
-                        {mode === "login" ? "register" : "sign in"}
-                    </button>
-                </p>
             </div>
         </div>
     )
