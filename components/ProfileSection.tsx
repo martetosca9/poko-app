@@ -18,11 +18,20 @@ function Avatar({ name }: { name: string }) {
     );
 }
 
-export default function ProfileSection() {
+type Props = {
+    onLogout: () => void
+}
+
+export default function ProfileSection({ onLogout }: Props) {
     const user = MOCK_USER;
     const joined = user.createdAt.toLocaleDateString("es-AR", {
         year: "numeric", month: "long", day: "numeric",
     });
+
+    async function handleLogout() {
+        await fetch("/api/auth/logout", { method: "POST" })
+        onLogout()
+    }
 
     return (
         <div className="w-full max-w-md rounded-2xl border border-neutral-800 bg-neutral-900 p-8 shadow-xl">
@@ -40,21 +49,21 @@ export default function ProfileSection() {
                 </li>
                 <li className="flex items-center gap-3">
                     <Calendar size={16} className="text-neutral-500 shrink-0" />
-                    Miembro desde {joined}
+                    Member since {joined}
                 </li>
                 <li className="flex items-center gap-3">
                     <MessageSquare size={16} className="text-neutral-500 shrink-0" />
-                    {user.conversationCount} conversaciones
+                    {user.conversationCount} chats
                 </li>
             </ul>
 
             {/* Cerrar sesión */}
             <button
-                onClick={() => console.log("logout")} // TODO: lógica real de logout
+                onClick={handleLogout}
                 className="mt-8 flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-400 transition hover:border-red-800 hover:bg-red-950 hover:text-red-400"
             >
                 <LogOut size={15} />
-                Cerrar sesión
+                Log out
             </button>
         </div>
     );

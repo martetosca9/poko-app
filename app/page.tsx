@@ -77,6 +77,11 @@ export default function Home() {
     }
   }
 
+  function handleLogout() {
+    setAuthed(false)
+    setActiveSection("chat")
+  }
+
   if (!authed) {
     return <LoginPage onSuccess={() => setAuthed(true)} />
   }
@@ -162,7 +167,7 @@ export default function Home() {
 
           {activeSection === "profile" && (
             <div className="flex flex-1 items-center justify-center">
-              <ProfileSection />
+              <ProfileSection onLogout={handleLogout} />
             </div>
           )}
         </main>

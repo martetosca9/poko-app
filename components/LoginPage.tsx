@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { LOGIN_TITLE, REGISTER_TITLE } from "@/lib/ascii-titles"
+import { LOGIN_TITLE, REGISTER_TITLE, ASCII_LEFT, ASCII_RIGHT } from "@/lib/ascii-titles"
 
 type Mode = "login" | "register"
 
@@ -54,81 +54,127 @@ export default function LoginPage({ onSuccess }: Props) {
     }
 
     return (
-        <div className="flex h-screen w-full flex-col items-center justify-center bg-neutral-950 px-8">
+        <>
+            <style>{`
+                @keyframes breathe {
+                    0%, 100% {
+                        color: #15803d;
+                        text-shadow: 0 0 6px #15803d, 0 0 12px #15803d55;
+                    }
+                    50% {
+                        color: #22c55e;
+                        text-shadow: 0 0 10px #22c55e, 0 0 22px #22c55e88, 0 0 40px #22c55e33;
+                    }
+                }
+                .hand-active {
+                    animation: breathe 2.8s ease-in-out infinite;
+                }
+                .hand-inactive {
+                    color: #404040;
+                    opacity: 0.4;
+                    transition: color 0.7s, opacity 0.7s;
+                }
+            `}</style>
 
-            {/* Títulos ASCII lado a lado */}
-            <div className="mb-10 flex gap-16 overflow-x-auto">
+            <div className="flex h-screen w-full items-center justify-center bg-neutral-950 px-8">
+
+                {/* ASCII izquierdo — se ilumina con login */}
                 <pre
-                    onClick={() => { playClick(); setMode("login"); setError("") }}
-                    className={`cursor-pointer text-[9px] leading-tight transition-all select-none ${
-                        mode === "login"
-                            ? "text-green-400 drop-shadow-[0_0_8px_#22c55e]"
-                            : "text-neutral-700 hover:text-neutral-500"
+                    className={`hidden lg:block text-[9px] leading-tight select-none mr-12 self-center ${
+                        mode === "login" ? "hand-active" : "hand-inactive"
                     }`}
                 >
-                    {LOGIN_TITLE}
+                    {ASCII_LEFT}
                 </pre>
 
-                <pre
-                    onClick={() => { playClick(); setMode("register"); setError("") }}
-                    className={`cursor-pointer text-[9px] leading-tight transition-all select-none ${
-                        mode === "register"
-                            ? "text-green-400 drop-shadow-[0_0_8px_#22c55e]"
-                            : "text-neutral-700 hover:text-neutral-500"
-                    }`}
-                >
-                    {REGISTER_TITLE}
-                </pre>
-            </div>
+                {/* Contenido central */}
+                <div className="flex flex-col items-center">
 
-            {/* Form */}
-            <div className="w-full max-w-sm border border-neutral-800 bg-neutral-900 p-8">
-                <div className="space-y-4">
+                    {/* Títulos ASCII lado a lado */}
+                    <div className="mb-10 flex gap-16 overflow-x-auto">
+                        <pre
+                            onClick={() => { playClick(); setMode("login"); setError("") }}
+                            className={`cursor-pointer text-[9px] leading-tight transition-all select-none ${
+                                mode === "login"
+                                    ? "text-green-400 drop-shadow-[0_0_8px_#22c55e]"
+                                    : "text-neutral-700 hover:text-neutral-500"
+                            }`}
+                        >
+                            {LOGIN_TITLE}
+                        </pre>
 
-                    {/* name - siempre ocupa espacio, solo se oculta */}
-                    <div style={{ visibility: mode === "register" ? "visible" : "hidden" }}>
-                        <label className="text-xs text-neutral-500">{">"} name</label>
-                        <input
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="mt-1 w-full border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 outline-none caret-green-400 focus:border-neutral-500"
-                        />
+                        <pre
+                            onClick={() => { playClick(); setMode("register"); setError("") }}
+                            className={`cursor-pointer text-[9px] leading-tight transition-all select-none ${
+                                mode === "register"
+                                    ? "text-green-400 drop-shadow-[0_0_8px_#22c55e]"
+                                    : "text-neutral-700 hover:text-neutral-500"
+                            }`}
+                        >
+                            {REGISTER_TITLE}
+                        </pre>
                     </div>
 
-                    <div>
-                        <label className="text-xs text-neutral-500">{">"} email</label>
-                        <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="mt-1 w-full border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 outline-none caret-green-400 focus:border-neutral-500"
-                        />
-                    </div>
+                    {/* Form */}
+                    <div className="w-full max-w-sm border border-neutral-800 bg-neutral-900 p-8">
+                        <div className="space-y-4">
 
-                    <div>
-                        <label className="text-xs text-neutral-500">{">"} password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                            className="mt-1 w-full border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 outline-none caret-green-400 focus:border-neutral-500"
-                        />
+                            {/* name - siempre ocupa espacio, solo se oculta */}
+                            <div style={{ visibility: mode === "register" ? "visible" : "hidden" }}>
+                                <label className="text-xs text-neutral-500">{">"} name</label>
+                                <input
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="mt-1 w-full border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 outline-none caret-green-400 focus:border-neutral-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-neutral-500">{">"} email</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="mt-1 w-full border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 outline-none caret-green-400 focus:border-neutral-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-neutral-500">{">"} password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                                    className="mt-1 w-full border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 outline-none caret-green-400 focus:border-neutral-500"
+                                />
+                            </div>
+                        </div>
+
+                        {error && (
+                            <p className="mt-4 text-xs text-red-400">{"> "}{error}</p>
+                        )}
+
+                        <button
+                            onClick={handleSubmit}
+                            disabled={loading}
+                            className="mt-6 w-full border border-neutral-700 py-2 text-sm text-neutral-300 transition hover:border-green-800 hover:bg-green-950 hover:text-green-400 disabled:opacity-50"
+                        >
+                            {loading ? "..." : mode === "login" ? "[ enter ]" : "[ register ]"}
+                        </button>
                     </div>
                 </div>
 
-                {error && (
-                    <p className="mt-4 text-xs text-red-400">{"> "}{error}</p>
-                )}
-
-                <button
-                    onClick={handleSubmit}
-                    disabled={loading}
-                    className="mt-6 w-full border border-neutral-700 py-2 text-sm text-neutral-300 transition hover:border-green-800 hover:bg-green-950 hover:text-green-400 disabled:opacity-50"
+                {/* ASCII derecho — se ilumina con register */}
+                <pre
+                    className={`hidden lg:block text-[9px] leading-tight select-none ml-12 self-center ${
+                        mode === "register" ? "hand-active" : "hand-inactive"
+                    }`}
                 >
-                    {loading ? "..." : mode === "login" ? "[ enter ]" : "[ register ]"}
-                </button>
+                    {ASCII_RIGHT}
+                </pre>
+
             </div>
-        </div>
+        </>
     )
 }
