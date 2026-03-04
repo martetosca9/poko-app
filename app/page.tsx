@@ -111,9 +111,23 @@ export default function Home() {
                 </div>
 
                 {/* AsciiBot a la derecha */}
-                <div className="hidden lg:flex items-start pt-8 px-6 pointer-events-none">
-                  <div className="text-[10px] leading-none text-neutral-300">
-                    <AsciiBot state={botState} />
+                <div className="hidden lg:flex items-start pt-8 px-6">
+                  <div className="bot-panel-border">
+                    <div
+                      className="p-4"
+                      style={{
+                        filter: botState === "waiting"
+                          ? "drop-shadow(0 0 2px #14532d)"
+                          : botState === "thinking"
+                          ? "drop-shadow(0 0 10px #22c55e) drop-shadow(0 0 20px #16a34a)"
+                          : "drop-shadow(0 0 15px #22c55e) drop-shadow(0 0 30px #16a34a) drop-shadow(0 0 45px #15803d)",
+                        transition: "filter 0.4s ease"
+                      }}
+                    >
+                      <div className="text-[10px] leading-none text-neutral-300">
+                        <AsciiBot state={botState} />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
