@@ -3,6 +3,7 @@
 import { nanoid } from "nanoid"
 import { useState, useCallback } from "react"
 import AsciiBot from "@/components/AsciiBot"
+import AsciiCat from "@/components/AsciiPoko"
 import AsciiLogo from "@/components/AsciiLogo"
 import ChatMessages from "@/components/ChatMessages"
 import ChatInput from "@/components/ChatInput"
@@ -121,8 +122,10 @@ export default function Home() {
                   <ChatMessages messages={messages} botState={botState} onTalkingDone={handleTalkingDone} />
                 </div>
 
-                {/* AsciiBot a la derecha */}
-                <div className="hidden lg:flex items-start pt-8 px-6">
+                {/* Panel derecho: posición relativa para anclar el gato */}
+                <div className="hidden lg:block relative pt-8 px-6">
+
+                  {/* AsciiBot arriba */}
                   <div className="bot-panel-border">
                     <div
                       className="p-4"
@@ -140,6 +143,11 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
+
+                  <div className="absolute bottom-4 left-6">
+                    <AsciiCat />
+                  </div>
+
                 </div>
 
               </div>
