@@ -10,6 +10,7 @@ import AppHeader from "@/components/AppHeader"
 import Sidebar from "@/components/Sidebar"
 import DocumentsSection from "@/components/DocumentsSection"
 import ProfileSection from "@/components/ProfileSection"
+import LoginPage from "@/components/LoginPage"
 
 
 type Message = {
@@ -24,6 +25,7 @@ type Doc = {
 };
 
 export default function Home() {
+  const [authed, setAuthed] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph" | "profile">("chat")
   const [documents, setDocuments] = useState<Doc[]>([]);
@@ -73,6 +75,10 @@ export default function Home() {
       setMessages(prev => [...prev, { id: nanoid(), role: "assistant", content: "Error talking to the AI." }])
       setBotState("waiting")
     }
+  }
+
+  if (!authed) {
+    return <LoginPage onSuccess={() => setAuthed(true)} />
   }
 
   return (
