@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
 import { nanoid } from "nanoid"
-
+import { useState, useCallback } from "react"
 import AsciiBot from "@/components/AsciiBot"
 import AsciiLogo from "@/components/AsciiLogo"
 import ChatMessages from "@/components/ChatMessages"
@@ -29,7 +28,7 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph" | "profile">("chat")
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [botState, setBotState] = useState<"waiting" | "thinking" | "talking" | "researching">("waiting")
-
+  const handleTalkingDone = useCallback(() => setBotState("waiting"), [])
 
   function createDocument() {
     const untitledCount =
@@ -78,18 +77,14 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-full bg-neutral-950 text-neutral-100">
-      {/* ===== HEADER GLOBAL (FIJO, NO SE MUEVE) ===== */}
       <AppHeader
         active={activeSection}
         onChange={setActiveSection}
       />
 
-      {/* ===== CONTENIDO DEBAJO DEL HEADER ===== */}
       <div className="flex w-full pt-10">
-        {/* Sidebar */}
         {sidebarOpen && <Sidebar activeSection={activeSection} />}
 
-        {/* Main Area */}
         <main className="flex flex-1 flex-col bg-neutral-900">
           <header className="flex items-center gap-3 border-b border-neutral-800 px-4 py-2">
             <button
@@ -106,14 +101,22 @@ export default function Home() {
             </h1>
           </header>
 
-          {/* ===== CONTENIDO POR SECCIÓN ===== */}
-
           {activeSection === "chat" && (
             <>
-              <div className="flex-1 overflow-hidden flex flex-col">
-                <div className="flex-1 overflow-hidden max-w-3xl w-full">
-                <ChatMessages messages={messages} botState={botState} onTalkingDone={() => setBotState("waiting")} />
+              <div className="flex-1 overflow-hidden flex flex-row">
+
+                {/* Chat */}
+                <div className="flex-1 overflow-hidden flex flex-col max-w-3xl">
+                  <ChatMessages messages={messages} botState={botState} onTalkingDone={handleTalkingDone} />
                 </div>
+
+                {/* AsciiBot a la derecha */}
+                <div className="hidden lg:flex items-start pt-8 px-6 pointer-events-none">
+                  <div className="text-[10px] leading-none text-neutral-300">
+                    <AsciiBot state={botState} />
+                  </div>
+                </div>
+
               </div>
 
               <footer className="border-t border-neutral-800 px-4 py-3">

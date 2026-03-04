@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import MessageBubble from "./MessageBubble"
-import AsciiBot from "@/components/AsciiBot"
 
 type Message = {
     id: string
@@ -16,16 +15,19 @@ type ChatMessagesProps = {
     onTalkingDone: () => void
 }
 
+const animatedIds = new Set<string>()
+
 function TypewriterMessage({ message, onDone }: { message: Message, onDone?: () => void }) {
     const [displayed, setDisplayed] = useState(
-        message.role === "user" ? message.content : ""
+        message.role === "user" || animatedIds.has(message.id) ? message.content : ""
     )
-    const [stopped, setStopped] = useState(false)
+    const [stopped, setStopped] = useState(animatedIds.has(message.id))
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const stableOnDone = useCallback(() => onDone?.(), [onDone])
 
     useEffect(() => {
         if (message.role === "user") return
+        if (animatedIds.has(message.id)) return
 
         setDisplayed("")
         setStopped(false)
@@ -36,6 +38,7 @@ function TypewriterMessage({ message, onDone }: { message: Message, onDone?: () 
             setDisplayed(message.content.slice(0, i))
             if (i >= message.content.length) {
                 clearInterval(intervalRef.current!)
+                animatedIds.add(message.id)
                 setStopped(true)
                 stableOnDone()
             }
@@ -54,6 +57,7 @@ function TypewriterMessage({ message, onDone }: { message: Message, onDone?: () 
             setDisplayed(message.content.slice(0, current))
             if (current <= 0) {
                 clearInterval(intervalRef.current!)
+                animatedIds.add(message.id)
                 setStopped(true)
                 stableOnDone()
             }
@@ -78,24 +82,19 @@ function TypewriterMessage({ message, onDone }: { message: Message, onDone?: () 
 export default function ChatMessages({ messages, botState, onTalkingDone }: ChatMessagesProps) {
     const bottomRef = useRef<HTMLDivElement>(null)
     const stableDone = useCallback(() => onTalkingDone(), [onTalkingDone])
+    const lastMessageId = messages[messages.length - 1]?.id
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [messages])
 
-    const lastIndex = messages.length - 1
-
     return (
         <section className="h-full overflow-y-auto px-4 py-6 space-y-4">
-            <div className="text-[10px] leading-none text-neutral-300 pb-4">
-                <AsciiBot state={botState} />
-            </div>
-
-            {messages.map((msg, i) => (
+            {messages.map((msg) => (
                 <TypewriterMessage
                     key={msg.id}
                     message={msg}
-                    onDone={i === lastIndex && msg.role === "assistant" ? stableDone : undefined}
+                    onDone={msg.id === lastMessageId && msg.role === "assistant" ? stableDone : undefined}
                 />
             ))}
             <div ref={bottomRef} />
