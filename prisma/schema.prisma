@@ -1,9 +1,11 @@
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [vector]
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 model User {
@@ -12,8 +14,12 @@ model User {
   name          String?
   password      String?
   conversations Conversation[]
+  documents     Document[]
+  graphNodes    GraphNode[]
+  graphEdges    GraphEdge[]
   createdAt     DateTime       @default(now())
 }
+
 model Conversation {
   id        String    @id @default(cuid())
   title     String?
@@ -37,4 +43,60 @@ enum MessageRole {
   user
   assistant
   system
+}
+
+model Document {
+  id        String          @id @default(cuid())
+  title     String          @default("Untitled")
+  content   String          @default("")
+  user      User            @relation(fields: [userId], references: [id])
+  userId    String
+  chunks    DocumentChunk[]
+  graphNode GraphNode?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model DocumentChunk {
+  id         String                      @id @default(cuid())
+  content    String
+  embedding  Unsupported("vector(768)")?
+  document   Document                    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+  chunkIndex Int
+  createdAt  DateTime                    @default(now())
+}
+
+model GraphNode {
+  id         String      @id @default(cuid())
+  label      String
+  type       NodeType
+  document   Document?   @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  documentId String?     @unique
+  user       User        @relation(fields: [userId], references: [id])
+  userId     String
+  x          Float       @default(0)
+  y          Float       @default(0)
+  edgesFrom  GraphEdge[] @relation("EdgeSource")
+  edgesTo    GraphEdge[] @relation("EdgeTarget")
+  createdAt  DateTime    @default(now())
+}
+
+model GraphEdge {
+  id        String    @id @default(cuid())
+  source    GraphNode @relation("EdgeSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId  String
+  target    GraphNode @relation("EdgeTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  targetId  String
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime  @default(now())
+
+  @@unique([sourceId, targetId])
+}
+
+enum NodeType {
+  doc
+  tag
+  chat
 }

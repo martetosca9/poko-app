@@ -57,8 +57,8 @@ const MOCK_EDGES: Edge[] = [
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const NODE_RADIUS: Record<NodeType, number> = { doc: 7, tag: 5, chat: 6 }
-const NODE_COLOR:  Record<NodeType, string>  = { doc: "#22c55e", tag: "#16a34a", chat: "#4ade80" }
-const NODE_GLOW:   Record<NodeType, string>  = { doc: "#22c55e", tag: "#166534", chat: "#4ade80" }
+const NODE_COLOR:  Record<NodeType, string>  = { doc: "#22c55e", tag: "#a3e635", chat: "#2dd4bf" }
+const NODE_GLOW:   Record<NodeType, string>  = { doc: "#22c55e", tag: "#a3e635", chat: "#2dd4bf" }
 
 const REPULSION    = 3500
 const ATTRACTION   = 0.012
