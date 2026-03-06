@@ -13,7 +13,7 @@ import Sidebar from "@/components/Sidebar"
 import DocumentsSection from "@/components/DocumentsSection"
 import ProfileSection from "@/components/ProfileSection"
 import LoginPage from "@/components/LoginPage"
-
+import GraphView from "@/components/Graphview"
 
 type Message = {
   id: string
@@ -132,20 +132,21 @@ export default function Home() {
                   {/* Panel derecho: bot arriba, gato abajo */}
                   <div className="hidden lg:block relative pt-8 px-6">
                     <div className="bot-panel-border">
-                      <div
-                        className="p-4"
-                        style={{
-                          backgroundColor: "rgba(5, 8, 5, 0.92)",
-                          filter: botState === "waiting"
-                            ? "drop-shadow(0 0 2px #14532d)"
-                            : botState === "thinking"
-                            ? "drop-shadow(0 0 10px #22c55e) drop-shadow(0 0 20px #16a34a)"
-                            : "drop-shadow(0 0 15px #22c55e) drop-shadow(0 0 30px #16a34a) drop-shadow(0 0 45px #15803d)",
-                          transition: "filter 0.4s ease"
-                        }}
-                      >
-                        <div className="text-[10px] leading-none text-green-400">
-                          <AsciiBot state={botState} />
+                      <div className="bg-neutral-950">
+                        <div
+                          className="p-4"
+                          style={{
+                            filter: botState === "waiting"
+                              ? "drop-shadow(0 0 2px #14532d)"
+                              : botState === "thinking"
+                                ? "drop-shadow(0 0 10px #22c55e) drop-shadow(0 0 20px #16a34a)"
+                                : "drop-shadow(0 0 15px #22c55e) drop-shadow(0 0 30px #16a34a) drop-shadow(0 0 45px #15803d)",
+                            transition: "filter 0.4s ease"
+                          }}
+                        >
+                          <div className="text-[10px] leading-none text-green-400">
+                            <AsciiBot state={botState} />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -173,9 +174,7 @@ export default function Home() {
             )}
 
             {activeSection === "graph" && (
-              <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">
-                Graph view (coming soon)
-              </div>
+              <GraphView />
             )}
 
             {activeSection === "profile" && (
