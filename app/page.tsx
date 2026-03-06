@@ -144,6 +144,7 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {/* Gato anclado al fondo absoluto del panel */}
                   <div className="absolute bottom-4 left-6">
                     <AsciiCat />
                   </div>
@@ -175,7 +176,7 @@ export default function Home() {
 
           {activeSection === "profile" && (
             <div className="flex flex-1 items-center justify-center">
-              <ProfileSection onLogout={handleLogout} />
+              <ProfileSection onLogout={handleLogout} onNavigate={setActiveSection} />
             </div>
           )}
         </main>
