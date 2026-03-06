@@ -48,10 +48,11 @@ body {
   100% { background-position: 200% 0%; }
 }
 
-.bot-panel-border {
+bot-panel-border {
   position: relative;
   padding: 1px;
   border-radius: 2px;
+  background-color: rgba(10, 10, 10, 0.85);
 }
 
 .bot-panel-border::before {

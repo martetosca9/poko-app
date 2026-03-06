@@ -5,6 +5,7 @@ import { useState, useCallback } from "react"
 import AsciiBot from "@/components/AsciiBot"
 import AsciiCat from "@/components/AsciiPoko"
 import AsciiLogo from "@/components/AsciiLogo"
+import AsciiBackground from "@/components/AsciiBackground"
 import ChatMessages from "@/components/ChatMessages"
 import ChatInput from "@/components/ChatInput"
 import AppHeader from "@/components/AppHeader"
@@ -88,98 +89,102 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-neutral-950 text-neutral-100">
-      <AppHeader
-        active={activeSection}
-        onChange={setActiveSection}
-      />
+    <div className="relative flex h-screen w-full bg-neutral-950 text-neutral-100">
 
-      <div className="flex w-full pt-10">
-        {sidebarOpen && <Sidebar activeSection={activeSection} />}
+      {/* Fondo ASCII estilo Obra Dinn — detrás de todo */}
+      <AsciiBackground />
 
-        <main className="flex flex-1 flex-col bg-neutral-900">
-          <header className="flex items-center gap-3 border-b border-neutral-800 px-4 py-2">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-neutral-400 hover:text-neutral-200"
-            >
-              ☰
-            </button>
-            <h1 className="text-sm font-medium tracking-wide text-neutral-200">
-              {activeSection === "chat" && "Chat"}
-              {activeSection === "docs" && "Documents"}
-              {activeSection === "graph" && "Graph"}
-              {activeSection === "profile" && "Profile"}
-            </h1>
-          </header>
+      {/* Todo el contenido de la app por encima del fondo */}
+      <div className="relative z-10 flex h-full w-full flex-col">
+        <AppHeader
+          active={activeSection}
+          onChange={setActiveSection}
+        />
 
-          {activeSection === "chat" && (
-            <>
-              <div className="flex-1 overflow-hidden flex flex-row">
+        <div className="flex w-full flex-1 overflow-hidden pt-10">
+          {sidebarOpen && <Sidebar activeSection={activeSection} />}
 
-                {/* Chat */}
-                <div className="flex-1 overflow-hidden flex flex-col max-w-3xl">
-                  <ChatMessages messages={messages} botState={botState} onTalkingDone={handleTalkingDone} />
-                </div>
+          <main className="flex flex-1 flex-col bg-neutral-900/40">
+            <header className="flex items-center gap-3 border-b border-neutral-800 px-4 py-2">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="text-neutral-400 hover:text-neutral-200"
+              >
+                ☰
+              </button>
+              <h1 className="text-sm font-medium tracking-wide text-neutral-200">
+                {activeSection === "chat" && "Chat"}
+                {activeSection === "docs" && "Documents"}
+                {activeSection === "graph" && "Graph"}
+                {activeSection === "profile" && "Profile"}
+              </h1>
+            </header>
 
-                {/* Panel derecho: posición relativa para anclar el gato */}
-                <div className="hidden lg:block relative pt-8 px-6">
+            {activeSection === "chat" && (
+              <>
+                <div className="flex-1 overflow-hidden flex flex-row">
 
-                  {/* AsciiBot arriba */}
-                  <div className="bot-panel-border">
-                    <div
-                      className="p-4"
-                      style={{
-                        filter: botState === "waiting"
-                          ? "drop-shadow(0 0 2px #14532d)"
-                          : botState === "thinking"
-                          ? "drop-shadow(0 0 10px #22c55e) drop-shadow(0 0 20px #16a34a)"
-                          : "drop-shadow(0 0 15px #22c55e) drop-shadow(0 0 30px #16a34a) drop-shadow(0 0 45px #15803d)",
-                        transition: "filter 0.4s ease"
-                      }}
-                    >
-                      <div className="text-[10px] leading-none text-neutral-300">
-                        <AsciiBot state={botState} />
+                  {/* Chat */}
+                  <div className="flex-1 overflow-hidden flex flex-col max-w-3xl">
+                    <ChatMessages messages={messages} botState={botState} onTalkingDone={handleTalkingDone} />
+                  </div>
+
+                  {/* Panel derecho: bot arriba, gato abajo */}
+                  <div className="hidden lg:block relative pt-8 px-6">
+                    <div className="bot-panel-border">
+                      <div
+                        className="p-4"
+                        style={{
+                          backgroundColor: "rgba(5, 8, 5, 0.92)",
+                          filter: botState === "waiting"
+                            ? "drop-shadow(0 0 2px #14532d)"
+                            : botState === "thinking"
+                            ? "drop-shadow(0 0 10px #22c55e) drop-shadow(0 0 20px #16a34a)"
+                            : "drop-shadow(0 0 15px #22c55e) drop-shadow(0 0 30px #16a34a) drop-shadow(0 0 45px #15803d)",
+                          transition: "filter 0.4s ease"
+                        }}
+                      >
+                        <div className="text-[10px] leading-none text-green-400">
+                          <AsciiBot state={botState} />
+                        </div>
                       </div>
+                    </div>
+
+                    <div className="absolute bottom-4 left-6">
+                      <AsciiCat />
                     </div>
                   </div>
 
-                  {/* Gato anclado al fondo absoluto del panel */}
-                  <div className="absolute bottom-4 left-6">
-                    <AsciiCat />
+                </div>
+
+                <footer className="border-t border-neutral-800 px-4 py-3">
+                  <div className="max-w-3xl">
+                    <ChatInput onSend={handleSend} />
                   </div>
+                </footer>
+              </>
+            )}
 
-                </div>
+            {activeSection === "docs" && (
+              <DocumentsSection
+                documents={documents}
+                onCreate={createDocument}
+              />
+            )}
 
+            {activeSection === "graph" && (
+              <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">
+                Graph view (coming soon)
               </div>
+            )}
 
-              <footer className="border-t border-neutral-800 px-4 py-3">
-                <div className="max-w-3xl">
-                  <ChatInput onSend={handleSend} />
-                </div>
-              </footer>
-            </>
-          )}
-
-          {activeSection === "docs" && (
-            <DocumentsSection
-              documents={documents}
-              onCreate={createDocument}
-            />
-          )}
-
-          {activeSection === "graph" && (
-            <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">
-              Graph view (coming soon)
-            </div>
-          )}
-
-          {activeSection === "profile" && (
-            <div className="flex flex-1 items-center justify-center">
-              <ProfileSection onLogout={handleLogout} onNavigate={setActiveSection} />
-            </div>
-          )}
-        </main>
+            {activeSection === "profile" && (
+              <div className="flex flex-1 items-center justify-center">
+                <ProfileSection onLogout={handleLogout} onNavigate={setActiveSection} />
+              </div>
+            )}
+          </main>
+        </div>
       </div>
     </div>
   )
