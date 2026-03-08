@@ -3,15 +3,16 @@ import { prisma } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 import { chunkAndEmbed } from "@/lib/embeddings"
 
-type Params = { params: { id: string } }
+type Params = { params: Promise<{ id: string }> }
 
 // GET /api/documents/[id]
 export async function GET(_req: Request, { params }: Params) {
+    const { id } = await params
     const session = await getSession()
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const document = await prisma.document.findFirst({
-        where: { id: params.id, userId: session.userId }
+        where: { id, userId: session.userId }
     })
 
     if (!document) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -19,37 +20,34 @@ export async function GET(_req: Request, { params }: Params) {
     return NextResponse.json({ document })
 }
 
-// PUT /api/documents/[id] — guardar contenido y regenerar chunks/embeddings
+// PUT /api/documents/[id]
 export async function PUT(req: Request, { params }: Params) {
+    const { id } = await params
     const session = await getSession()
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { title, content } = await req.json()
 
     const document = await prisma.document.update({
-        where: { id: params.id },
+        where: { id },
         data: {
             ...(title !== undefined && { title }),
             ...(content !== undefined && { content }),
         }
     })
 
-    // Actualizar label del nodo en el grafo si cambió el título
     if (title !== undefined) {
         await prisma.graphNode.updateMany({
-            where: { documentId: params.id },
+            where: { documentId: id },
             data: { label: title }
         })
     }
 
-    // Regenerar chunks y embeddings si cambió el contenido
     if (content !== undefined && content.trim().length > 0) {
-        // Borrar chunks anteriores
         await prisma.documentChunk.deleteMany({
-            where: { documentId: params.id }
+            where: { documentId: id }
         })
-        // Generar nuevos (async, no bloqueamos la respuesta)
-        chunkAndEmbed(params.id, content).catch(console.error)
+        chunkAndEmbed(id, content).catch(console.error)
     }
 
     return NextResponse.json({ document })
@@ -57,16 +55,16 @@ export async function PUT(req: Request, { params }: Params) {
 
 // DELETE /api/documents/[id]
 export async function DELETE(_req: Request, { params }: Params) {
+    const { id } = await params
     const session = await getSession()
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    // Borrar nodo del grafo (cascadea edges)
     await prisma.graphNode.deleteMany({
-        where: { documentId: params.id }
+        where: { documentId: id }
     })
 
     await prisma.document.delete({
-        where: { id: params.id }
+        where: { id }
     })
 
     return NextResponse.json({ ok: true })
