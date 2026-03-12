@@ -21,34 +21,12 @@ type Message = {
   content: string
 }
 
-type Doc = {
-  id: string;
-  title: string;
-};
-
 export default function Home() {
   const [authed, setAuthed] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph" | "profile">("chat")
-  const [documents, setDocuments] = useState<Doc[]>([]);
   const [botState, setBotState] = useState<"waiting" | "thinking" | "talking" | "researching">("waiting")
   const handleTalkingDone = useCallback(() => setBotState("waiting"), [])
-
-  function createDocument() {
-    const untitledCount =
-      documents.filter(doc => doc.title.startsWith("Untitled")).length + 1;
-
-    const newDoc = {
-      id: nanoid(),
-      title: untitledCount === 1 ? "Untitled" : `Untitled ${untitledCount}`,
-    };
-
-    setDocuments((prev) => [...prev, newDoc]);
-  }
-
-  function openDocument(id: string) {
-    console.log("Open document:", id);
-  }
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -90,11 +68,8 @@ export default function Home() {
 
   return (
     <div className="relative flex h-screen w-full bg-neutral-950 text-neutral-100">
-
-      {/* Fondo ASCII estilo Obra Dinn — detrás de todo */}
       <AsciiBackground />
 
-      {/* Todo el contenido de la app por encima del fondo */}
       <div className="relative z-10 flex h-full w-full flex-col">
         <AppHeader
           active={activeSection}
@@ -123,13 +98,10 @@ export default function Home() {
             {activeSection === "chat" && (
               <>
                 <div className="flex-1 overflow-hidden flex flex-row">
-
-                  {/* Chat */}
                   <div className="flex-1 overflow-hidden flex flex-col max-w-3xl">
                     <ChatMessages messages={messages} botState={botState} onTalkingDone={handleTalkingDone} />
                   </div>
 
-                  {/* Panel derecho: bot arriba, gato abajo */}
                   <div className="hidden lg:block relative pt-8 px-6">
                     <div className="bot-panel-border">
                       <div className="bg-neutral-950">
@@ -155,7 +127,6 @@ export default function Home() {
                       <AsciiCat />
                     </div>
                   </div>
-
                 </div>
 
                 <footer className="border-t border-neutral-800 px-4 py-3">
@@ -167,10 +138,7 @@ export default function Home() {
             )}
 
             {activeSection === "docs" && (
-              <DocumentsSection
-                documents={documents}
-                onCreate={createDocument}
-              />
+              <DocumentsSection onCreate={() => {}} />
             )}
 
             {activeSection === "graph" && (
