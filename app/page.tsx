@@ -1,7 +1,7 @@
 "use client"
 
 import { nanoid } from "nanoid"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import AsciiBot from "@/components/AsciiBot"
 import AsciiCat from "@/components/AsciiPoko"
 import AsciiLogo from "@/components/AsciiLogo"
@@ -22,11 +22,29 @@ type Message = {
 }
 
 export default function Home() {
-  const [authed, setAuthed] = useState(false)
+  const [authed, setAuthed] = useState<boolean | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph" | "profile">("chat")
+  const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph" | "profile">("docs")
   const [botState, setBotState] = useState<"waiting" | "thinking" | "talking" | "researching">("waiting")
   const handleTalkingDone = useCallback(() => setBotState("waiting"), [])
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then(r => r.ok ? setAuthed(true) : setAuthed(false))
+      .catch(() => setAuthed(false))
+  }, [])
+
+  useEffect(() => {
+    if (authed !== true) return
+    console.log("authed true, search:", window.location.search)
+    const params = new URLSearchParams(window.location.search)
+    const section = params.get("section")
+    console.log("section param:", section)
+    if (section === "docs" || section === "chat" || section === "graph" || section === "profile") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveSection(section)
+    }
+  }, [authed])
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -58,12 +76,26 @@ export default function Home() {
   }
 
   function handleLogout() {
+    fetch("/api/auth/logout", { method: "POST" })
     setAuthed(false)
     setActiveSection("chat")
   }
 
+  if (authed === null) return (
+    <div className="flex h-screen items-center justify-center bg-neutral-950 text-xs text-neutral-600">
+      loading...
+    </div>
+  )
+
   if (!authed) {
-    return <LoginPage onSuccess={() => setAuthed(true)} />
+    return <LoginPage onSuccess={() => {
+      setAuthed(true)
+      const params = new URLSearchParams(window.location.search)
+      const section = params.get("section")
+      if (section === "docs" || section === "chat" || section === "graph" || section === "profile") {
+        setActiveSection(section)
+      }
+    }} />
   }
 
   return (

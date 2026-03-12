@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { useParams, useRouter } from "next/navigation"
-import Link from "next/link"
+import { useParams } from "next/navigation"
+import { useRouter } from "next/navigation"
+import { BACK_ASCII } from "@/lib/ascii-titles"
 
 export default function DocumentPage() {
     const { id } = useParams<{ id: string }>()
@@ -15,12 +16,19 @@ export default function DocumentPage() {
 
     useEffect(() => {
         fetch(`/api/documents/${id}`)
-            .then(r => r.json())
+            .then(r => {
+                if (r.status === 401) {
+                    router.push("/")
+                    return null
+                }
+                return r.json()
+            })
             .then(data => {
+                if (!data) return
                 setTitle(data.document.title)
                 setContent(data.document.content)
             })
-    }, [id])
+    }, [id, router])
 
     function scheduleSave(newTitle: string, newContent: string) {
         setSaved(false)
@@ -49,17 +57,40 @@ export default function DocumentPage() {
 
     return (
         <div className="flex h-screen flex-col bg-neutral-950 text-neutral-100">
-            {/* Header */}
             <header className="flex items-center justify-between border-b border-neutral-800 px-6 py-3">
-                <Link href="/" className="text-xs text-neutral-600 hover:text-neutral-400 transition">
-                    ← back
-                </Link>
-                <span className="text-[10px] text-neutral-600">
+                <button
+                    onClick={() => router.push("/?section=docs")}
+                    className="group"
+                >
+                    <pre
+                        className="text-[3px] leading-tight text-green-800 transition-colors duration-300 group-hover:text-green-400"
+                        style={{ textShadow: "0 0 4px #14532d" }}
+                        onMouseEnter={e => {
+                            (e.currentTarget as HTMLElement).style.textShadow = "0 0 8px #22c55e, 0 0 16px #16a34a"
+                        }}
+                        onMouseLeave={e => {
+                            (e.currentTarget as HTMLElement).style.textShadow = "0 0 4px #14532d"
+                        }}
+                    >
+                        {BACK_ASCII}
+                    </pre>
+                </button>
+
+                <span
+                    className="text-[10px] transition-colors duration-300"
+                    style={{
+                        color: saving ? "#22c55e" : saved ? "#15803d" : "#854d0e",
+                        textShadow: saving
+                            ? "0 0 8px #22c55e, 0 0 16px #16a34a"
+                            : saved
+                                ? "0 0 4px #15803d"
+                                : "0 0 4px #854d0e"
+                    }}
+                >
                     {saving ? "saving..." : saved ? "saved" : "unsaved"}
                 </span>
             </header>
 
-            {/* Title */}
             <div className="px-12 pt-10">
                 <input
                     value={title}
@@ -70,7 +101,6 @@ export default function DocumentPage() {
                 <div className="mt-2 h-px bg-neutral-800" />
             </div>
 
-            {/* Content */}
             <textarea
                 value={content}
                 onChange={handleContentChange}
