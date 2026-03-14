@@ -2,6 +2,7 @@
 
 import { Mail, Calendar, LogOut, FileText, GitGraph, MessageSquare } from "lucide-react";
 import AsciiEye from "@/components/AsciiEye";
+import AsciiAvatar from "@/components/AsciiAvatar";
 import { useEffect, useState } from "react";
 
 type User = {
@@ -18,17 +19,6 @@ type Props = {
     onLogout: () => void
     onNavigate?: (section: "chat" | "docs" | "graph") => void
     user: User | null
-}
-
-function Avatar({ name, email }: { name: string | null; email: string }) {
-    const initials = name
-        ? name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
-        : email.slice(0, 2).toUpperCase()
-    return (
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-700 text-xl font-semibold text-neutral-100 ring-2 ring-neutral-600">
-            {initials}
-        </div>
-    );
 }
 
 export default function ProfileSection({ onLogout, onNavigate, user }: Props) {
@@ -62,8 +52,19 @@ export default function ProfileSection({ onLogout, onNavigate, user }: Props) {
             <div className="flex flex-col gap-4 w-72">
                 <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-xl">
                     <div className="flex flex-col items-center gap-3 pb-5 border-b border-neutral-800">
-                        <Avatar name={user?.name ?? null} email={user?.email ?? ""} />
-                        <h1 className="text-lg font-semibold text-neutral-100">{user?.name ?? user?.email ?? "—"}</h1>
+                        <div
+                            style={{
+                                filter: "drop-shadow(0 0 6px #22c55e) drop-shadow(0 0 14px #16a34a)",
+                            }}
+                        >
+                            <AsciiAvatar
+                                seed={user?.id ?? "default"}
+                                className="text-[10px] leading-tight text-green-400 select-none"
+                            />
+                        </div>
+                        <h1 className="text-lg font-semibold text-neutral-100">
+                            {user?.name ?? user?.email ?? "—"}
+                        </h1>
                     </div>
 
                     <ul className="mt-5 space-y-3 text-sm text-neutral-300">
@@ -109,8 +110,9 @@ export default function ProfileSection({ onLogout, onNavigate, user }: Props) {
                         <button
                             key={chat.id}
                             onClick={() => onNavigate?.("chat")}
-                            className={`w-full text-left px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 transition ${i !== chats.length - 1 ? "border-b border-neutral-800" : ""
-                                }`}
+                            className={`w-full text-left px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 transition ${
+                                i !== chats.length - 1 ? "border-b border-neutral-800" : ""
+                            }`}
                         >
                             {chat.title ?? "Untitled chat"}
                         </button>
@@ -132,8 +134,9 @@ export default function ProfileSection({ onLogout, onNavigate, user }: Props) {
                         <button
                             key={doc.id}
                             onClick={() => onNavigate?.("docs")}
-                            className={`w-full text-left px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 transition ${i !== docs.length - 1 ? "border-b border-neutral-800" : ""
-                                }`}
+                            className={`w-full text-left px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 transition ${
+                                i !== docs.length - 1 ? "border-b border-neutral-800" : ""
+                            }`}
                         >
                             {doc.title}
                         </button>
@@ -149,11 +152,11 @@ export default function ProfileSection({ onLogout, onNavigate, user }: Props) {
                 }}
             >
                 <style>{`
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-        `}</style>
+                    @keyframes float {
+                        0%, 100% { transform: translateY(0px); }
+                        50% { transform: translateY(-10px); }
+                    }
+                `}</style>
                 <AsciiEye />
             </div>
 

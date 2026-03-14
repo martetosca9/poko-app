@@ -1,6 +1,7 @@
 "use client";
 
 import AsciiLogo from "@/components/AsciiLogo";
+import AsciiAvatar from "@/components/AsciiAvatar";
 
 type Section = "chat" | "docs" | "graph" | "profile";
 
@@ -16,11 +17,6 @@ type Props = {
     onChange: (section: Section) => void;
     user: User | null;
 };
-
-function avatarInitials(name: string | null, email: string) {
-    if (name) return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
-    return email.slice(0, 2).toUpperCase()
-}
 
 export default function AppHeader({ active, onChange, user }: Props) {
     return (
@@ -55,12 +51,18 @@ export default function AppHeader({ active, onChange, user }: Props) {
 
                 <button
                     onClick={() => onChange("profile")}
-                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ring-2 transition ${active === "profile"
-                            ? "bg-neutral-200 text-neutral-900 ring-neutral-400"
-                            : "bg-neutral-700 text-neutral-100 ring-neutral-600 hover:ring-neutral-400"
-                        }`}
+                    className="group flex items-center justify-center transition"
                 >
-                    {user ? avatarInitials(user.name, user.email) : "?"}
+                    <AsciiAvatar
+                        seed={user?.id ?? "default"}
+                        className={`text-[6px] leading-tight select-none font-bold ${active === "profile" ? "text-green-400" : "text-green-500 group-hover:text-green-400"
+                            }`}
+                        style={{
+                            textShadow: active === "profile"
+                                ? "0 0 8px #22c55e, 0 0 16px #16a34a"
+                                : "0 0 6px #22c55e, 0 0 12px #16a34a"
+                        }}
+                    />
                 </button>
             </div>
         </div>
