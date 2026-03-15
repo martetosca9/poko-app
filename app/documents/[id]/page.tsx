@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { BACK_ASCII, SIDEBAR_OPEN, SIDEBAR_CLOSED } from "@/lib/ascii-titles"
+import { BACK_ASCII, SIDEBAR_OPEN, SIDEBAR_CLOSED, NEW_DOC_ASCII } from "@/lib/ascii-titles"
 import CodeMirror from "@uiw/react-codemirror"
 import { EditorView, Decoration, ViewPlugin, ViewUpdate, DecorationSet } from "@codemirror/view"
 import { RangeSetBuilder } from "@codemirror/state"
@@ -108,6 +108,18 @@ export default function DocumentPage() {
             .catch(() => { })
     }, [])
 
+    async function handleNewDoc() {
+        const res = await fetch("/api/documents", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: "Untitled" })
+        })
+        const data = await res.json()
+        if (data.document?.id) {
+            router.push(`/documents/${data.document.id}`)
+        }
+    }
+
     function scheduleSave(newTitle: string, newContent: string) {
         setSaved(false)
         if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -156,6 +168,16 @@ export default function DocumentPage() {
                             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.textShadow = "0 0 4px #14532d" }}
                         >
                             {BACK_ASCII}
+                        </pre>
+                    </button>
+                    <button onClick={handleNewDoc} className="group ml-80">
+                        <pre
+                            className="text-[5px] leading-tight text-green-800 transition-colors duration-300 group-hover:text-green-400"
+                            style={{ textShadow: "0 0 4px #14532d" }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.textShadow = "0 0 8px #22c55e, 0 0 16px #16a34a" }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.textShadow = "0 0 4px #14532d" }}
+                        >
+                            {NEW_DOC_ASCII}
                         </pre>
                     </button>
                 </div>
