@@ -1,11 +1,73 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { BACK_ASCII, SIDEBAR_OPEN, SIDEBAR_CLOSED } from "@/lib/ascii-titles"
+import CodeMirror from "@uiw/react-codemirror"
+import { EditorView, Decoration, ViewPlugin, ViewUpdate, DecorationSet } from "@codemirror/view"
+import { RangeSetBuilder } from "@codemirror/state"
 
 type Doc = { id: string; title: string }
 type Chat = { id: string; title: string | null }
+
+const tagHighlighter = ViewPlugin.fromClass(
+    class {
+        decorations: DecorationSet
+        constructor(view: EditorView) { this.decorations = this.build(view) }
+        update(update: ViewUpdate) {
+            if (update.docChanged || update.viewportChanged)
+                this.decorations = this.build(update.view)
+        }
+        build(view: EditorView): DecorationSet {
+            const builder = new RangeSetBuilder<Decoration>()
+            const tagMark = Decoration.mark({ class: "cm-tag" })
+            for (const { from, to } of view.visibleRanges) {
+                const text = view.state.doc.sliceString(from, to)
+                let match: RegExpExecArray | null
+                const re = /#[\w]+/g
+                while ((match = re.exec(text)) !== null) {
+                    builder.add(from + match.index, from + match.index + match[0].length, tagMark)
+                }
+            }
+            return builder.finish()
+        }
+    },
+    { decorations: v => v.decorations }
+)
+
+const darkTheme = EditorView.theme({
+    "&": {
+        background: "transparent !important",
+        color: "#d4d4d8",
+        fontSize: "14px",
+        fontFamily: "ui-monospace, monospace",
+        height: "100%",
+    },
+    ".cm-editor": { background: "transparent !important" },
+    ".cm-scroller": {
+        background: "transparent !important",
+        overflow: "auto",
+    },
+    ".cm-content": {
+        padding: "24px 48px",
+        lineHeight: "1.75",
+        caretColor: "#4ade80",
+        background: "transparent !important",
+    },
+    ".cm-line": { padding: "0", background: "transparent !important" },
+    ".cm-cursor": { borderLeftColor: "#4ade80" },
+    ".cm-focused": { outline: "none" },
+    ".cm-tag": {
+        color: "#4ade80",
+        textShadow: "0 0 8px #22c55e, 0 0 16px #16a34a",
+        fontWeight: "600",
+    },
+    ".cm-selectionBackground": { background: "#14532d55 !important" },
+    "&.cm-focused .cm-selectionBackground": { background: "#14532d88 !important" },
+    ".cm-gutters": { display: "none" },
+    ".cm-activeLine": { background: "transparent !important" },
+    ".cm-placeholder": { color: "#404040" },
+}, { dark: true })
 
 export default function DocumentPage() {
     const { id } = useParams<{ id: string }>()
@@ -17,6 +79,7 @@ export default function DocumentPage() {
     const [sidebarOpen, setSidebarOpen] = useState(true)
     const [docs, setDocs] = useState<Doc[]>([])
     const [chats, setChats] = useState<Chat[]>([])
+    const [loaded, setLoaded] = useState(false)
     const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
@@ -29,6 +92,7 @@ export default function DocumentPage() {
                 if (!data) return
                 setTitle(data.document.title)
                 setContent(data.document.content)
+                setLoaded(true)
             })
     }, [id, router])
 
@@ -64,10 +128,11 @@ export default function DocumentPage() {
         scheduleSave(e.target.value, content)
     }
 
-    function handleContentChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-        setContent(e.target.value)
-        scheduleSave(title, e.target.value)
-    }
+    const handleContentChange = useCallback((value: string) => {
+        setContent(value)
+        scheduleSave(title, value)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [title, id])
 
     return (
         <div className="flex h-screen flex-col bg-neutral-950 text-neutral-100">
@@ -155,8 +220,8 @@ export default function DocumentPage() {
                     </aside>
                 )}
 
-                <div className="flex flex-1 flex-col overflow-hidden">
-                    <div className="px-12 pt-10">
+                <div className="flex flex-1 flex-col overflow-hidden bg-neutral-950">
+                    <div className="px-12 pt-10 shrink-0">
                         <input
                             value={title}
                             onChange={handleTitleChange}
@@ -166,12 +231,33 @@ export default function DocumentPage() {
                         <div className="mt-2 h-px bg-neutral-800" />
                     </div>
 
-                    <textarea
-                        value={content}
-                        onChange={handleContentChange}
-                        placeholder="> start writing..."
-                        className="flex-1 resize-none bg-transparent px-12 py-6 text-sm text-neutral-300 outline-none placeholder:text-neutral-700 caret-green-400 leading-relaxed"
-                    />
+                    <div className="flex-1 overflow-hidden bg-neutral-950">
+                        {loaded && (
+                            <CodeMirror
+                                value={content}
+                                onChange={handleContentChange}
+                                extensions={[tagHighlighter, darkTheme, EditorView.lineWrapping]}
+                                placeholder="> start writing..."
+                                basicSetup={{
+                                    lineNumbers: false,
+                                    foldGutter: false,
+                                    dropCursor: false,
+                                    allowMultipleSelections: false,
+                                    indentOnInput: false,
+                                    highlightActiveLine: false,
+                                    highlightSelectionMatches: false,
+                                    bracketMatching: false,
+                                    closeBrackets: false,
+                                    autocompletion: false,
+                                    rectangularSelection: false,
+                                    crosshairCursor: false,
+                                    highlightActiveLineGutter: false,
+                                }}
+                                height="100%"
+                                style={{ height: "100%" }}
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
