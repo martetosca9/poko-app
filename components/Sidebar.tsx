@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 
 type Props = {
     activeSection: "chat" | "docs" | "graph" | "profile";
+    onSelectConversation?: (id: string) => void;
 };
 
 type Doc = { id: string; title: string }
 type Chat = { id: string; title: string | null }
 
-export default function Sidebar({ activeSection }: Props) {
+export default function Sidebar({ activeSection, onSelectConversation }: Props) {
     const router = useRouter()
     const [docs, setDocs] = useState<Doc[]>([])
     const [chats, setChats] = useState<Chat[]>([])
@@ -42,6 +43,7 @@ export default function Sidebar({ activeSection }: Props) {
                         {chats.map(chat => (
                             <button
                                 key={chat.id}
+                                onClick={() => onSelectConversation?.(chat.id)}
                                 className="w-full text-left px-4 py-2 text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition truncate"
                             >
                                 {chat.title ?? "Untitled chat"}
@@ -114,6 +116,7 @@ export default function Sidebar({ activeSection }: Props) {
                             {chats.map(chat => (
                                 <button
                                     key={chat.id}
+                                    onClick={() => onSelectConversation?.(chat.id)}
                                     className="w-full text-left px-4 py-2 text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition truncate"
                                 >
                                     {chat.title ?? "Untitled chat"}

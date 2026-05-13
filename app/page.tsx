@@ -33,6 +33,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph" | "profile">("docs")
   const [botState, setBotState] = useState<"waiting" | "thinking" | "talking" | "researching">("waiting")
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const handleTalkingDone = useCallback(() => setBotState("waiting"), [])
 
   useEffect(() => {
@@ -54,7 +55,6 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search)
     const section = params.get("section")
     if (section === "docs" || section === "chat" || section === "graph" || section === "profile") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveSection(section)
     }
   }, [authed])
@@ -76,15 +76,40 @@ export default function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ message: text, conversationId })
       })
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Chat request failed")
+      if (data.conversationId) setConversationId(data.conversationId)
       const assistantMessage: Message = { id: nanoid(), role: "assistant", content: data.reply }
       setMessages(prev => [...prev, assistantMessage])
       setBotState("talking")
-    } catch (err) {
+    } catch {
       setMessages(prev => [...prev, { id: nanoid(), role: "assistant", content: "Error talking to the AI." }])
       setBotState("waiting")
+    }
+  }
+
+  async function handleSelectConversation(id: string) {
+    try {
+      const res = await fetch(`/api/conversations/${id}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Conversation request failed")
+
+      setConversationId(data.conversation.id)
+      setMessages(
+        data.conversation.messages
+          .filter((msg: { role: string }) => msg.role === "user" || msg.role === "assistant")
+          .map((msg: { id: string; role: "user" | "assistant"; content: string }) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+          }))
+      )
+      setBotState("waiting")
+      setActiveSection("chat")
+    } catch {
+      setMessages(prev => [...prev, { id: nanoid(), role: "assistant", content: "Error loading conversation." }])
     }
   }
 
@@ -129,7 +154,7 @@ export default function Home() {
         />
 
         <div className="flex w-full flex-1 overflow-hidden pt-10">
-          {sidebarOpen && <Sidebar activeSection={activeSection} />}
+          {sidebarOpen && <Sidebar activeSection={activeSection} onSelectConversation={handleSelectConversation} />}
 
           <main className="flex flex-1 flex-col bg-neutral-900/40">
             <header className="flex items-center gap-3 border-b border-neutral-800 px-4 py-2">

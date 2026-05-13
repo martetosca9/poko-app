@@ -97,7 +97,7 @@ function TypewriterMessage({ message, onDone }: { message: Message, onDone?: () 
     )
 }
 
-export default function ChatMessages({ messages, botState, onTalkingDone }: ChatMessagesProps) {
+export default function ChatMessages({ messages, onTalkingDone }: ChatMessagesProps) {
     const bottomRef = useRef<HTMLDivElement>(null)
     const stableDone = useCallback(() => onTalkingDone(), [onTalkingDone])
     const lastMessageId = messages[messages.length - 1]?.id
