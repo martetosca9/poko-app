@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import Groq from "groq-sdk"
 import { prisma } from "@/lib/db"
 import { getSession } from "@/lib/auth"
-import { searchRelevantChunks } from "@/lib/embeddings"
+import { getDocumentInventory, searchRelevantChunks } from "@/lib/embeddings"
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
         },
     })
 
-    const [recentMessages, relevantChunks] = await Promise.all([
+    const [recentMessages, relevantChunks, documentInventory] = await Promise.all([
         prisma.message.findMany({
             where: { conversationId: conversation.id },
             orderBy: { createdAt: "desc" },
@@ -51,13 +51,23 @@ export async function POST(req: Request) {
             select: { role: true, content: true },
         }),
         searchRelevantChunks(message, session.userId, 5),
+        getDocumentInventory(session.userId),
     ])
 
-    const docsContext = relevantChunks.length > 0
+    const documentList = documentInventory.length > 0
+        ? documentInventory
+            .map((document, index) => {
+                const preview = document.excerpt ? `\nVista previa: ${document.excerpt}` : ""
+                return `${index + 1}. ${document.title} (id: ${document.id})${preview}`
+            })
+            .join("\n")
+        : "No hay documentos guardados."
+
+    const relevantContext = relevantChunks.length > 0
         ? relevantChunks
-            .map((chunk, index) => `Documento ${index + 1}: ${chunk.title}\n${chunk.content}`)
+            .map((chunk, index) => `Fragmento relevante ${index + 1}: ${chunk.title}\n${chunk.content}`)
             .join("\n\n")
-        : "No se encontraron documentos relevantes para esta pregunta."
+        : "No se encontraron fragmentos relevantes para esta pregunta."
 
     const completion = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
@@ -68,11 +78,16 @@ export async function POST(req: Request) {
                     "Eres poko, un asistente inteligente dentro de una app estilo Obsidian.",
                     "Respondés de forma concisa y directa.",
                     "Tenés memoria de los mensajes recientes de esta conversación.",
-                    "También podés usar el contexto de documentos del usuario cuando sea relevante.",
-                    "Si los documentos no contienen la respuesta, decilo con claridad y no inventes.",
+                    "Tenés acceso al inventario real de documentos del usuario incluido abajo.",
+                    "Si el usuario pide listar, contar, explorar o nombrar documentos, usá el Inventario de documentos, no la memoria de la charla.",
+                    "Para responder sobre el contenido de un documento, usá Fragmentos relevantes y Vista previa del inventario.",
+                    "Si el inventario o los fragmentos no contienen la respuesta, decilo con claridad y no inventes.",
                     "",
-                    "Contexto de documentos:",
-                    docsContext,
+                    "Inventario de documentos:",
+                    documentList,
+                    "",
+                    "Fragmentos relevantes:",
+                    relevantContext,
                 ].join("\n")
             },
             ...recentMessages

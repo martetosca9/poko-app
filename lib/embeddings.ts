@@ -32,6 +32,13 @@ type RelevantChunk = {
     score: number
 }
 
+type DocumentInventoryItem = {
+    id: string
+    title: string
+    excerpt: string
+    updatedAt: Date
+}
+
 function tokenize(text: string) {
     return text
         .toLowerCase()
@@ -52,6 +59,22 @@ function scoreText(text: string, queryTokens: string[]) {
 function excerpt(text: string, maxLength = 900) {
     const compact = text.replace(/\s+/g, " ").trim()
     return compact.length > maxLength ? `${compact.slice(0, maxLength)}...` : compact
+}
+
+export async function getDocumentInventory(userId: string, limit = 30): Promise<DocumentInventoryItem[]> {
+    const documents = await prisma.document.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true, title: true, content: true, updatedAt: true },
+        take: limit,
+    })
+
+    return documents.map(document => ({
+        id: document.id,
+        title: document.title,
+        excerpt: excerpt(document.content, 180),
+        updatedAt: document.updatedAt,
+    }))
 }
 
 export async function searchRelevantChunks(query: string, userId: string, limit = 5): Promise<RelevantChunk[]> {
@@ -87,7 +110,16 @@ export async function searchRelevantChunks(query: string, userId: string, limit 
             score: scoreText(`${document.title} ${document.content}`, queryTokens),
         }))
 
-    return [...chunkMatches, ...documentMatches]
+    const matchesByDocument = new Map<string, RelevantChunk>()
+
+    for (const match of [...chunkMatches, ...documentMatches].filter(document => document.score > 0)) {
+        const current = matchesByDocument.get(match.documentId)
+        if (!current || match.score > current.score) {
+            matchesByDocument.set(match.documentId, match)
+        }
+    }
+
+    return [...matchesByDocument.values()]
         .filter(document => document.score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
