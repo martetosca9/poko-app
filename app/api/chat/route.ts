@@ -80,6 +80,8 @@ export async function POST(req: Request) {
                     "Tenés memoria de los mensajes recientes de esta conversación.",
                     "Tenés acceso al inventario real de documentos del usuario incluido abajo.",
                     "Si el usuario pide listar, contar, explorar o nombrar documentos, usá el Inventario de documentos, no la memoria de la charla.",
+                    "Cuando listes documentos, respondé como lista vertical: una línea por documento, usando '- Título: vista previa'.",
+                    "No incluyas IDs salvo que el usuario los pida explícitamente.",
                     "Para responder sobre el contenido de un documento, usá Fragmentos relevantes y Vista previa del inventario.",
                     "Si el inventario o los fragmentos no contienen la respuesta, decilo con claridad y no inventes.",
                     "",
