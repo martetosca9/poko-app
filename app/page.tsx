@@ -27,6 +27,16 @@ type User = {
   createdAt: string
 }
 
+function createInitialMessages(): Message[] {
+  return [
+    {
+      id: nanoid(),
+      role: "assistant",
+      content: "Ask any question..."
+    }
+  ]
+}
+
 export default function Home() {
   const [authed, setAuthed] = useState<boolean | null>(null)
   const [user, setUser] = useState<User | null>(null)
@@ -34,6 +44,7 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph" | "profile">("docs")
   const [botState, setBotState] = useState<"waiting" | "thinking" | "talking" | "researching">("waiting")
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [conversationsRefreshKey, setConversationsRefreshKey] = useState(0)
   const handleTalkingDone = useCallback(() => setBotState("waiting"), [])
 
   useEffect(() => {
@@ -59,15 +70,10 @@ export default function Home() {
     }
   }, [authed])
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: nanoid(),
-      role: "assistant",
-      content: "Ask any question..."
-    }
-  ])
+  const [messages, setMessages] = useState<Message[]>(createInitialMessages)
 
   async function handleSend(text: string) {
+    const wasNewConversation = conversationId === null
     const userMessage: Message = { id: nanoid(), role: "user", content: text }
     setMessages(prev => [...prev, userMessage])
     setBotState("thinking")
@@ -76,11 +82,14 @@ export default function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, conversationId })
+        body: JSON.stringify({ message: text, conversationId, activeSection })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? "Chat request failed")
       if (data.conversationId) setConversationId(data.conversationId)
+      if (wasNewConversation && data.conversationId) {
+        setConversationsRefreshKey(key => key + 1)
+      }
       const assistantMessage: Message = { id: nanoid(), role: "assistant", content: data.reply }
       setMessages(prev => [...prev, assistantMessage])
       setBotState("talking")
@@ -88,6 +97,13 @@ export default function Home() {
       setMessages(prev => [...prev, { id: nanoid(), role: "assistant", content: "Error talking to the AI." }])
       setBotState("waiting")
     }
+  }
+
+  function handleNewConversation() {
+    setConversationId(null)
+    setMessages(createInitialMessages())
+    setBotState("waiting")
+    setActiveSection("chat")
   }
 
   async function handleSelectConversation(id: string) {
@@ -154,7 +170,15 @@ export default function Home() {
         />
 
         <div className="flex w-full flex-1 overflow-hidden pt-10">
-          {sidebarOpen && <Sidebar activeSection={activeSection} onSelectConversation={handleSelectConversation} />}
+          {sidebarOpen && (
+            <Sidebar
+              activeSection={activeSection}
+              activeConversationId={conversationId}
+              conversationsRefreshKey={conversationsRefreshKey}
+              onNewConversation={handleNewConversation}
+              onSelectConversation={handleSelectConversation}
+            />
+          )}
 
           <main className="flex flex-1 flex-col bg-neutral-900/40">
             <header className="flex items-center gap-3 border-b border-neutral-800 px-4 py-2">
