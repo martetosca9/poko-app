@@ -67,6 +67,27 @@ function getCreateDocumentRequest(message: string) {
     return { title, contentInstruction }
 }
 
+function getUpdateDocumentRequest(message: string) {
+    const normalized = normalize(message)
+    const asksForUpdate = /\b(rellena|rellenar|completa|completar|actualiza|actualizar|edita|editar|modifica|modificar|escribe|escribir|agrega|agregar|anade|anadir|añade|añadir)\b/.test(normalized)
+    const mentionsDocument = /\b(doc|documento)\b/.test(normalized)
+    if (!asksForUpdate || !mentionsDocument) return null
+
+    const title = extractQuotedValue(message, [
+        /documento\s+["'“”]([^"'“”]+)["'“”]/i,
+        /doc\s+["'“”]([^"'“”]+)["'“”]/i,
+        /(?:llamado|llamada|titulado|titulada)\s+["'“”]([^"'“”]+)["'“”]/i,
+    ])
+
+    if (!title) return null
+
+    const contentInstruction = extractQuotedValue(message, [
+        /(?:con|sobre|acerca de)\s+(.+)$/i,
+    ]) ?? message
+
+    return { title, contentInstruction }
+}
+
 async function generateDocumentContent(title: string, instruction: string) {
     const completion = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
@@ -83,6 +104,31 @@ async function generateDocumentContent(title: string, instruction: string) {
     })
 
     return completion.choices[0].message.content?.trim() || instruction
+}
+
+async function updateDocumentForUser(userId: string, title: string, content: string) {
+    const document = await prisma.document.findFirst({
+        where: {
+            userId,
+            title: { equals: title, mode: "insensitive" },
+        },
+        select: { id: true, title: true },
+    })
+
+    if (!document) return null
+
+    const updatedDocument = await prisma.document.update({
+        where: { id: document.id },
+        data: { content },
+    })
+
+    await prisma.documentChunk.deleteMany({ where: { documentId: document.id } })
+
+    if (content.trim().length > 0) {
+        await chunkAndEmbed(document.id, content)
+    }
+
+    return updatedDocument
 }
 
 async function createDocumentForUser(userId: string, title: string, content: string) {
@@ -176,6 +222,43 @@ export async function POST(req: Request) {
             content: message,
         },
     })
+
+    const updateDocumentRequest = getUpdateDocumentRequest(message)
+    if (updateDocumentRequest) {
+        const content = await generateDocumentContent(
+            updateDocumentRequest.title,
+            updateDocumentRequest.contentInstruction
+        )
+
+        const document = await updateDocumentForUser(session.userId, updateDocumentRequest.title, content)
+        const reply = document
+            ? [
+                `Actualicé el documento "${document.title}".`,
+                "",
+                "Contenido:",
+                content,
+            ].join("\n")
+            : `No encontré un documento llamado "${updateDocumentRequest.title}".`
+
+        await prisma.message.create({
+            data: {
+                conversationId: conversation.id,
+                role: "assistant",
+                content: reply,
+            },
+        })
+
+        return NextResponse.json({
+            reply,
+            conversationId: conversation.id,
+            updatedDocument: document
+                ? {
+                    id: document.id,
+                    title: document.title,
+                }
+                : null,
+        })
+    }
 
     const createDocumentRequest = getCreateDocumentRequest(message)
     if (createDocumentRequest) {
@@ -274,6 +357,7 @@ export async function POST(req: Request) {
                     "Para responder sobre el contenido de un documento, usá Fragmentos relevantes y Vista previa del inventario.",
                     "Si respondés usando contenido de documentos, mencioná la fuente con 'Fuente: Nombre del documento'.",
                     "Si el usuario usa referencias como 'ese documento' o 'el último', inferí el referente desde los mensajes recientes y el inventario.",
+                    "No afirmes que creaste, actualizaste, editaste o borraste un documento salvo que la app haya ejecutado una acción real y esa acción aparezca en el contexto inmediato.",
                     "Si el inventario o los fragmentos no contienen la respuesta, decilo con claridad y no inventes.",
                     "Evitá cerrar con preguntas genéricas cuando solo estás listando o resumiendo datos.",
                     "",
