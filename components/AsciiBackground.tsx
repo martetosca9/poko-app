@@ -69,7 +69,7 @@ export default function AsciiBackground() {
         }
       `}</style>
             <pre
-                className="select-none"
+                className="absolute left-1/2 top-0 select-none"
                 style={{
                     fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
                     fontSize: "11px",
@@ -79,7 +79,7 @@ export default function AsciiBackground() {
                     color: "#22c55e",
                     animation: "planet-pulse 5s ease-in-out infinite",
                     willChange: "opacity",
-                    transform: "translateZ(0)",
+                    transform: "translateX(-50%) translateZ(0)",
                 }}
             >
                 {ASCII_PLANET_LINES.join("\n")}

@@ -47,7 +47,7 @@ export default function DocumentsSection({ onCreate }: Props) {
     )
 
     return (
-        <div className="flex flex-1 flex-col max-w-5xl">
+        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800">
                 <div className="flex items-center gap-3">
                     <h2 className="text-sm text-neutral-300">Your documents</h2>

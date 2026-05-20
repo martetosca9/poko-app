@@ -206,46 +206,50 @@ export default function Home() {
 
             {activeSection === "chat" && (
               <>
-                <div className="flex-1 overflow-hidden flex flex-row">
-                  <div className="flex-1 overflow-hidden flex flex-col max-w-3xl">
-                    <ChatMessages
-                      messages={messages}
-                      botState={botState}
-                      animatedMessageId={animatedMessageId}
-                      onTalkingDone={handleTalkingDone}
-                    />
-                  </div>
+                <div className="flex-1 overflow-hidden px-4">
+                  <div className="mx-auto grid h-full w-full max-w-6xl grid-cols-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="min-w-0 overflow-hidden flex flex-col">
+                      <ChatMessages
+                        messages={messages}
+                        botState={botState}
+                        animatedMessageId={animatedMessageId}
+                        onTalkingDone={handleTalkingDone}
+                      />
+                    </div>
 
-                  <div className="hidden lg:block relative pt-8 px-6">
-                    <div className="bot-panel-border">
-                      <div className="bg-neutral-950">
-                        <div
-                          className="p-4"
-                          style={{
-                            filter: botState === "waiting"
-                              ? "drop-shadow(0 0 2px #14532d)"
-                              : botState === "thinking"
-                                ? "drop-shadow(0 0 10px #22c55e) drop-shadow(0 0 20px #16a34a)"
-                                : "drop-shadow(0 0 15px #22c55e) drop-shadow(0 0 30px #16a34a) drop-shadow(0 0 45px #15803d)",
-                            transition: "filter 0.4s ease"
-                          }}
-                        >
-                          <div className="text-[10px] leading-none text-green-400">
-                            <AsciiBot state={botState} />
+                    <div className="relative hidden min-w-0 px-4 pt-8 xl:block">
+                      <div className="bot-panel-border mx-auto w-fit">
+                        <div className="bg-neutral-950">
+                          <div
+                            className="p-4"
+                            style={{
+                              filter: botState === "waiting"
+                                ? "drop-shadow(0 0 2px #14532d)"
+                                : botState === "thinking"
+                                  ? "drop-shadow(0 0 10px #22c55e) drop-shadow(0 0 20px #16a34a)"
+                                  : "drop-shadow(0 0 15px #22c55e) drop-shadow(0 0 30px #16a34a) drop-shadow(0 0 45px #15803d)",
+                              transition: "filter 0.4s ease"
+                            }}
+                          >
+                            <div className="text-[10px] leading-none text-green-400">
+                              <AsciiBot state={botState} />
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="absolute bottom-4 left-6">
-                      <AsciiCat />
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                        <AsciiCat />
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <footer className="border-t border-neutral-800 px-4 py-3">
-                  <div className="max-w-3xl">
-                    <ChatInput onSend={handleSend} />
+                  <div className="mx-auto w-full max-w-6xl">
+                    <div className="w-full xl:max-w-[calc(100%-320px)]">
+                      <ChatInput onSend={handleSend} />
+                    </div>
                   </div>
                 </footer>
               </>
