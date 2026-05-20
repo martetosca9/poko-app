@@ -40,6 +40,12 @@ export default function GraphView() {
     const [hovered, setHovered]   = useState<string | null>(null)
     const [selected, setSelected] = useState<Node | null>(null)
     const [loading, setLoading]   = useState(true)
+    const [graphData, setGraphData] = useState<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] })
+    const [visibleTypes, setVisibleTypes] = useState<Record<NodeType, boolean>>({
+        doc: true,
+        tag: true,
+        chat: true,
+    })
 
     // Fetch real data
     useEffect(() => {
@@ -55,6 +61,10 @@ export default function GraphView() {
                     source: e.sourceId,
                     target: e.targetId,
                 }))
+                setGraphData({
+                    nodes: nodesRef.current,
+                    edges: edgesRef.current,
+                })
                 setLoading(false)
             })
             .catch(() => setLoading(false))
@@ -68,10 +78,11 @@ export default function GraphView() {
     const getNodeAt = useCallback((sx: number, sy: number) => {
         const { cx, cy } = toCanvas(sx, sy)
         return nodesRef.current.find(n => {
+            if (!visibleTypes[n.type]) return false
             const r = NODE_RADIUS[n.type] + 4
             return Math.hypot(n.x - cx, n.y - cy) < r
         }) ?? null
-    }, [toCanvas])
+    }, [toCanvas, visibleTypes])
 
     const simulate = useCallback(() => {
         const nodes = nodesRef.current
@@ -119,8 +130,9 @@ export default function GraphView() {
         if (!canvas) return
         const ctx = canvas.getContext("2d")!
         const { x, y, scale } = transformRef.current
-        const nodes = nodesRef.current
-        const edges = edgesRef.current
+        const nodes = nodesRef.current.filter(node => visibleTypes[node.type])
+        const visibleNodeIds = new Set(nodes.map(node => node.id))
+        const edges = edgesRef.current.filter(edge => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
 
         ctx.clearRect(0, 0, canvas.width, canvas.height)
         ctx.save()
@@ -165,7 +177,7 @@ export default function GraphView() {
         }
 
         ctx.restore()
-    }, [hovered, selected])
+    }, [hovered, selected, visibleTypes])
 
     useEffect(() => {
         const loop = () => {
@@ -244,6 +256,20 @@ export default function GraphView() {
         }
     }, [])
 
+    const graphStats = (["doc", "tag", "chat"] as NodeType[]).map(type => {
+        const typeNodes = graphData.nodes.filter(node => node.type === type)
+        const typeNodeIds = new Set(typeNodes.map(node => node.id))
+        const connectionCount = graphData.edges.filter(edge =>
+            typeNodeIds.has(edge.source) || typeNodeIds.has(edge.target)
+        ).length
+
+        return { type, nodeCount: typeNodes.length, connectionCount }
+    })
+
+    const selectedConnectionCount = selected
+        ? graphData.edges.filter(edge => edge.source === selected.id || edge.target === selected.id).length
+        : 0
+
     return (
         <div className="relative flex flex-1 overflow-hidden">
             {loading && (
@@ -263,22 +289,38 @@ export default function GraphView() {
                 onWheel={onWheel}
             />
 
-            <div className="absolute bottom-4 left-4 flex flex-col gap-1.5 border border-neutral-800 bg-neutral-950/80 px-3 py-2 text-[10px] font-mono">
-                {(["doc", "tag", "chat"] as NodeType[]).map(t => (
-                    <div key={t} className="flex items-center gap-2">
+            <div className="absolute bottom-4 left-4 flex min-w-36 flex-col gap-1.5 border border-neutral-800 bg-neutral-950/80 px-3 py-2 text-[10px] font-mono">
+                {graphStats.map(({ type, nodeCount, connectionCount }) => (
+                    <button
+                        key={type}
+                        type="button"
+                        onClick={() => setVisibleTypes(current => ({ ...current, [type]: !current[type] }))}
+                        className={`grid grid-cols-[auto_1fr_auto] items-center gap-2 text-left transition ${
+                            visibleTypes[type] ? "text-neutral-300" : "text-neutral-700"
+                        }`}
+                    >
                         <span
                             className="inline-block h-2 w-2 rounded-full"
-                            style={{ background: NODE_COLOR[t], boxShadow: `0 0 4px ${NODE_COLOR[t]}` }}
+                            style={{
+                                background: NODE_COLOR[type],
+                                boxShadow: visibleTypes[type] ? `0 0 4px ${NODE_COLOR[type]}` : "none",
+                                opacity: visibleTypes[type] ? 1 : 0.35,
+                            }}
                         />
-                        <span className="text-neutral-400">{t}</span>
-                    </div>
+                        <span>{type}</span>
+                        <span className="text-neutral-500">{nodeCount} / {connectionCount}</span>
+                    </button>
                 ))}
+                <div className="mt-1 border-t border-neutral-800 pt-1 text-[9px] text-neutral-600">
+                    nodes / links
+                </div>
             </div>
 
             {selected && (
                 <div className="absolute right-4 top-4 w-48 border border-neutral-800 bg-neutral-950/90 p-3 font-mono text-[10px]">
                     <div className="mb-1 text-green-400">{selected.label}</div>
                     <div className="text-neutral-500">type: {selected.type}</div>
+                    <div className="text-neutral-500">links: {selectedConnectionCount}</div>
                     <button
                         onClick={() => setSelected(null)}
                         className="mt-2 text-neutral-600 hover:text-neutral-400"
