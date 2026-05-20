@@ -12,22 +12,28 @@ type Message = {
 type ChatMessagesProps = {
     messages: Message[]
     botState: "waiting" | "thinking" | "talking" | "researching"
+    animatedMessageId: string | null
     onTalkingDone: () => void
 }
 
 const animatedIds = new Set<string>()
 
-function TypewriterMessage({ message, onDone }: { message: Message, onDone?: () => void }) {
+function TypewriterMessage({ message, shouldAnimate, onDone }: { message: Message, shouldAnimate: boolean, onDone?: () => void }) {
     const [displayed, setDisplayed] = useState(
-        message.role === "user" || animatedIds.has(message.id) ? message.content : ""
+        shouldAnimate && !animatedIds.has(message.id) ? "" : message.content
     )
-    const [stopped, setStopped] = useState(animatedIds.has(message.id))
+    const [stopped, setStopped] = useState(!shouldAnimate || animatedIds.has(message.id))
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const stableOnDone = useCallback(() => onDone?.(), [onDone])
     const audioRef = useRef<HTMLAudioElement | null>(null)
 
     useEffect(() => {
-        if (message.role === "user") return
+        if (!shouldAnimate) {
+            setDisplayed(message.content)
+            setStopped(true)
+            return
+        }
+
         if (animatedIds.has(message.id)) return
 
         audioRef.current = new Audio("/sounds/537033__fivebrosstopmosyt__ui-menu-close-2.wav")
@@ -63,9 +69,9 @@ function TypewriterMessage({ message, onDone }: { message: Message, onDone?: () 
         }, 18)
 
         return () => clearInterval(intervalRef.current!)
-    }, [message.id, message.content, message.role, stableOnDone])
+    }, [message.id, message.content, shouldAnimate, stableOnDone])
 
-    const isTyping = message.role === "assistant" && !stopped && displayed.length < message.content.length
+    const isTyping = shouldAnimate && !stopped && displayed.length < message.content.length
 
     function handleStop() {
         clearInterval(intervalRef.current!)
@@ -97,7 +103,7 @@ function TypewriterMessage({ message, onDone }: { message: Message, onDone?: () 
     )
 }
 
-export default function ChatMessages({ messages, onTalkingDone }: ChatMessagesProps) {
+export default function ChatMessages({ messages, animatedMessageId, onTalkingDone }: ChatMessagesProps) {
     const bottomRef = useRef<HTMLDivElement>(null)
     const stableDone = useCallback(() => onTalkingDone(), [onTalkingDone])
     const lastMessageId = messages[messages.length - 1]?.id
@@ -112,7 +118,8 @@ export default function ChatMessages({ messages, onTalkingDone }: ChatMessagesPr
                 <TypewriterMessage
                     key={msg.id}
                     message={msg}
-                    onDone={msg.id === lastMessageId && msg.role === "assistant" ? stableDone : undefined}
+                    shouldAnimate={msg.id === animatedMessageId && msg.role === "assistant"}
+                    onDone={msg.id === lastMessageId && msg.id === animatedMessageId ? stableDone : undefined}
                 />
             ))}
             <div ref={bottomRef} />

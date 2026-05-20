@@ -45,7 +45,11 @@ export default function Home() {
   const [botState, setBotState] = useState<"waiting" | "thinking" | "talking" | "researching">("waiting")
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [conversationsRefreshKey, setConversationsRefreshKey] = useState(0)
-  const handleTalkingDone = useCallback(() => setBotState("waiting"), [])
+  const [animatedMessageId, setAnimatedMessageId] = useState<string | null>(null)
+  const handleTalkingDone = useCallback(() => {
+    setBotState("waiting")
+    setAnimatedMessageId(null)
+  }, [])
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -91,9 +95,11 @@ export default function Home() {
         setConversationsRefreshKey(key => key + 1)
       }
       const assistantMessage: Message = { id: nanoid(), role: "assistant", content: data.reply }
+      setAnimatedMessageId(assistantMessage.id)
       setMessages(prev => [...prev, assistantMessage])
       setBotState("talking")
     } catch {
+      setAnimatedMessageId(null)
       setMessages(prev => [...prev, { id: nanoid(), role: "assistant", content: "Error talking to the AI." }])
       setBotState("waiting")
     }
@@ -102,6 +108,7 @@ export default function Home() {
   function handleNewConversation() {
     setConversationId(null)
     setMessages(createInitialMessages())
+    setAnimatedMessageId(null)
     setBotState("waiting")
     setActiveSection("chat")
   }
@@ -122,6 +129,7 @@ export default function Home() {
             content: msg.content,
           }))
       )
+      setAnimatedMessageId(null)
       setBotState("waiting")
       setActiveSection("chat")
     } catch {
@@ -200,7 +208,12 @@ export default function Home() {
               <>
                 <div className="flex-1 overflow-hidden flex flex-row">
                   <div className="flex-1 overflow-hidden flex flex-col max-w-3xl">
-                    <ChatMessages messages={messages} botState={botState} onTalkingDone={handleTalkingDone} />
+                    <ChatMessages
+                      messages={messages}
+                      botState={botState}
+                      animatedMessageId={animatedMessageId}
+                      onTalkingDone={handleTalkingDone}
+                    />
                   </div>
 
                   <div className="hidden lg:block relative pt-8 px-6">
