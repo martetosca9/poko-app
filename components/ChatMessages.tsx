@@ -14,11 +14,12 @@ type ChatMessagesProps = {
     botState: "waiting" | "thinking" | "talking" | "researching"
     animatedMessageId: string | null
     onTalkingDone: () => void
+    soundEnabled?: boolean
 }
 
 const animatedIds = new Set<string>()
 
-function TypewriterMessage({ message, shouldAnimate, onDone }: { message: Message, shouldAnimate: boolean, onDone?: () => void }) {
+function TypewriterMessage({ message, shouldAnimate, onDone, soundEnabled = true }: { message: Message, shouldAnimate: boolean, onDone?: () => void, soundEnabled?: boolean }) {
     const [displayed, setDisplayed] = useState(
         shouldAnimate && !animatedIds.has(message.id) ? "" : message.content
     )
@@ -26,6 +27,21 @@ function TypewriterMessage({ message, shouldAnimate, onDone }: { message: Messag
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const stableOnDone = useCallback(() => onDone?.(), [onDone])
     const audioRef = useRef<HTMLAudioElement | null>(null)
+    const soundEnabledRef = useRef(soundEnabled)
+
+    useEffect(() => {
+        soundEnabledRef.current = soundEnabled
+    }, [soundEnabled])
+
+    function playTypewriterSound(volume: number) {
+        if (!soundEnabledRef.current) return
+        if (!audioRef.current) {
+            audioRef.current = new Audio("/sounds/537033__fivebrosstopmosyt__ui-menu-close-2.wav")
+        }
+        audioRef.current.volume = volume
+        audioRef.current.currentTime = 0
+        audioRef.current.play().catch(() => {})
+    }
 
     useEffect(() => {
         if (!shouldAnimate) {
@@ -36,9 +52,6 @@ function TypewriterMessage({ message, shouldAnimate, onDone }: { message: Messag
 
         if (animatedIds.has(message.id)) return
 
-        audioRef.current = new Audio("/sounds/537033__fivebrosstopmosyt__ui-menu-close-2.wav")
-        audioRef.current.volume = 0.3
-
         setDisplayed("")
         setStopped(false)
         let i = 0
@@ -47,23 +60,16 @@ function TypewriterMessage({ message, shouldAnimate, onDone }: { message: Messag
             i++
             setDisplayed(message.content.slice(0, i))
 
-            if (i % 3 === 0 && audioRef.current) {
+            if (i % 3 === 0) {
                 const progress = i / message.content.length
-                audioRef.current.volume = Math.max(0.02, 0.3 * (1 - progress))
-                audioRef.current.currentTime = 0
-                audioRef.current.play().catch(() => {})
+                playTypewriterSound(Math.max(0.02, 0.3 * (1 - progress)))
             }
             
             if (i >= message.content.length) {
                 clearInterval(intervalRef.current!)
                 animatedIds.add(message.id)
                 setStopped(true)
-                // sonido final con volumen normal
-                if (audioRef.current) {
-                    audioRef.current.volume = 0.3
-                    audioRef.current.currentTime = 0
-                    audioRef.current.play().catch(() => {})
-                }
+                playTypewriterSound(0.3)
                 stableOnDone()
             }
         }, 18)
@@ -103,7 +109,7 @@ function TypewriterMessage({ message, shouldAnimate, onDone }: { message: Messag
     )
 }
 
-export default function ChatMessages({ messages, animatedMessageId, onTalkingDone }: ChatMessagesProps) {
+export default function ChatMessages({ messages, animatedMessageId, onTalkingDone, soundEnabled = true }: ChatMessagesProps) {
     const bottomRef = useRef<HTMLDivElement>(null)
     const stableDone = useCallback(() => onTalkingDone(), [onTalkingDone])
     const lastMessageId = messages[messages.length - 1]?.id
@@ -120,6 +126,7 @@ export default function ChatMessages({ messages, animatedMessageId, onTalkingDon
                     message={msg}
                     shouldAnimate={msg.id === animatedMessageId && msg.role === "assistant"}
                     onDone={msg.id === lastMessageId && msg.id === animatedMessageId ? stableDone : undefined}
+                    soundEnabled={soundEnabled}
                 />
             ))}
             <div ref={bottomRef} />

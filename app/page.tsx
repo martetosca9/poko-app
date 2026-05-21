@@ -13,6 +13,9 @@ import DocumentsSection from "@/components/DocumentsSection"
 import ProfileSection from "@/components/ProfileSection"
 import LoginPage from "@/components/LoginPage"
 import GraphView from "@/components/Graphview"
+import { Volume2, VolumeX } from "lucide-react"
+
+const CHAT_SOUND_STORAGE_KEY = "poko-chat-sound-enabled"
 
 type Message = {
   id: string
@@ -46,6 +49,7 @@ export default function Home() {
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [conversationsRefreshKey, setConversationsRefreshKey] = useState(0)
   const [animatedMessageId, setAnimatedMessageId] = useState<string | null>(null)
+  const [chatSoundEnabled, setChatSoundEnabled] = useState(true)
   const handleTalkingDone = useCallback(() => {
     setBotState("waiting")
     setAnimatedMessageId(null)
@@ -73,6 +77,19 @@ export default function Home() {
       setActiveSection(section)
     }
   }, [authed])
+
+  useEffect(() => {
+    const stored = localStorage.getItem(CHAT_SOUND_STORAGE_KEY)
+    if (stored !== null) setChatSoundEnabled(stored === "true")
+  }, [])
+
+  function toggleChatSound() {
+    setChatSoundEnabled(prev => {
+      const next = !prev
+      localStorage.setItem(CHAT_SOUND_STORAGE_KEY, String(next))
+      return next
+    })
+  }
 
   const [messages, setMessages] = useState<Message[]>(createInitialMessages)
 
@@ -202,6 +219,26 @@ export default function Home() {
                 {activeSection === "graph" && "Graph"}
                 {activeSection === "profile" && "Profile"}
               </h1>
+              {activeSection === "chat" && (
+                <button
+                  type="button"
+                  onClick={toggleChatSound}
+                  title={chatSoundEnabled ? "Desactivar sonido del bot" : "Activar sonido del bot"}
+                  aria-label={chatSoundEnabled ? "Desactivar sonido del bot" : "Activar sonido del bot"}
+                  aria-pressed={chatSoundEnabled}
+                  className={`ml-auto border px-2 py-1 text-xs transition ${
+                    chatSoundEnabled
+                      ? "border-neutral-600 text-neutral-300 hover:border-green-700 hover:text-green-400"
+                      : "border-neutral-700 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300"
+                  }`}
+                >
+                  {chatSoundEnabled ? (
+                    <Volume2 className="h-3.5 w-3.5" aria-hidden />
+                  ) : (
+                    <VolumeX className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                </button>
+              )}
             </header>
 
             {activeSection === "chat" && (
@@ -214,6 +251,7 @@ export default function Home() {
                         botState={botState}
                         animatedMessageId={animatedMessageId}
                         onTalkingDone={handleTalkingDone}
+                        soundEnabled={chatSoundEnabled}
                       />
                     </div>
 
