@@ -7,8 +7,11 @@ import { Plus } from "lucide-react";
 type Props = {
     activeSection: "chat" | "docs" | "graph" | "profile";
     activeConversationId?: string | null;
+    activeDocumentId?: string | null;
     conversationsRefreshKey?: number;
+    documentsRefreshKey?: number;
     onNewConversation?: () => void;
+    onNewDocument?: () => void;
     onSelectConversation?: (id: string) => void;
 };
 
@@ -18,8 +21,11 @@ type Chat = { id: string; title: string | null }
 export default function Sidebar({
     activeSection,
     activeConversationId,
+    activeDocumentId,
     conversationsRefreshKey = 0,
+    documentsRefreshKey = 0,
     onNewConversation,
+    onNewDocument,
     onSelectConversation
 }: Props) {
     const router = useRouter()
@@ -36,7 +42,7 @@ export default function Sidebar({
             .then(r => r.json())
             .then(data => setChats(data.conversations ?? []))
             .catch(() => {})
-    }, [conversationsRefreshKey])
+    }, [conversationsRefreshKey, documentsRefreshKey])
 
     return (
         <aside className="w-56 shrink-0 border-r border-neutral-800 bg-neutral-900 flex flex-col overflow-hidden">
@@ -79,8 +85,20 @@ export default function Sidebar({
 
             {activeSection === "docs" && (
                 <div className="flex flex-col overflow-hidden flex-1">
-                    <div className="px-4 py-3 text-[10px] uppercase tracking-widest text-neutral-600 border-b border-neutral-800">
-                        Documents
+                    <div className="flex items-center justify-between gap-2 border-b border-neutral-800 px-4 py-3">
+                        <span className="text-[10px] uppercase tracking-widest text-neutral-600">
+                            Documents
+                        </span>
+                        {onNewDocument && (
+                            <button
+                                type="button"
+                                title="New document"
+                                onClick={onNewDocument}
+                                className="flex h-6 w-6 items-center justify-center border border-neutral-800 text-neutral-500 transition hover:border-neutral-600 hover:text-neutral-100"
+                            >
+                                <Plus size={14} strokeWidth={1.8} />
+                            </button>
+                        )}
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         {docs.length === 0 && (
@@ -90,7 +108,11 @@ export default function Sidebar({
                             <button
                                 key={doc.id}
                                 onClick={() => router.push(`/documents/${doc.id}`)}
-                                className="w-full text-left px-4 py-2 text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition truncate"
+                                className={`w-full truncate px-4 py-2 text-left text-xs transition ${
+                                    doc.id === activeDocumentId
+                                        ? "bg-neutral-800 text-neutral-100"
+                                        : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+                                }`}
                             >
                                 {doc.title || "Untitled"}
                             </button>
