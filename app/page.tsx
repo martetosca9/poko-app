@@ -48,6 +48,7 @@ export default function Home() {
   const [botState, setBotState] = useState<"waiting" | "thinking" | "talking" | "researching">("waiting")
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [conversationsRefreshKey, setConversationsRefreshKey] = useState(0)
+  const [documentsRefreshKey, setDocumentsRefreshKey] = useState(0)
   const [animatedMessageId, setAnimatedMessageId] = useState<string | null>(null)
   const [chatSoundEnabled, setChatSoundEnabled] = useState(true)
   const handleTalkingDone = useCallback(() => {
@@ -203,6 +204,7 @@ export default function Home() {
               activeSection={activeSection}
               activeConversationId={conversationId}
               conversationsRefreshKey={conversationsRefreshKey}
+              documentsRefreshKey={documentsRefreshKey}
               onNewConversation={handleNewConversation}
               onSelectConversation={handleSelectConversation}
             />
