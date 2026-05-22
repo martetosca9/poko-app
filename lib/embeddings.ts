@@ -13,17 +13,26 @@ function splitIntoChunks(text: string, chunkSize = 500, overlap = 50): string[] 
     return chunks.length > 0 ? chunks : [text]
 }
 
-// Embeddings desactivados hasta tener API — devuelve vacío
-async function getEmbedding(_text: string): Promise<number[]> {
-    return []
-}
-
+// Embeddings are disabled for now; chunks still power document retrieval.
 export async function chunkAndEmbed(_documentId: string, _content: string) {
-    // Desactivado hasta tener API de embeddings
-    return
+    const content = _content.trim()
+    if (!content) return
+
+    const chunks = splitIntoChunks(content)
+    await prisma.documentChunk.createMany({
+        data: chunks.map((chunk, index) => ({
+            documentId: _documentId,
+            content: chunk,
+            chunkIndex: index,
+        }))
+    })
 }
 
 export async function searchRelevantChunks(_query: string, _userId: string, _limit = 5) {
-    // Desactivado hasta tener API de embeddings
+    void _query
+    void _userId
+    void _limit
+
+    // Search is disabled until embeddings are available.
     return []
 }

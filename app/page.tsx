@@ -33,6 +33,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph" | "profile">("docs")
   const [botState, setBotState] = useState<"waiting" | "thinking" | "talking" | "researching">("waiting")
+  const [documentsRefreshKey, setDocumentsRefreshKey] = useState(0)
   const handleTalkingDone = useCallback(() => setBotState("waiting"), [])
 
   useEffect(() => {
@@ -54,7 +55,6 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search)
     const section = params.get("section")
     if (section === "docs" || section === "chat" || section === "graph" || section === "profile") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveSection(section)
     }
   }, [authed])
@@ -78,12 +78,20 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text })
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.reply) {
+        throw new Error(data?.reply ?? "Error talking to the AI.")
+      }
+
       const assistantMessage: Message = { id: nanoid(), role: "assistant", content: data.reply }
       setMessages(prev => [...prev, assistantMessage])
+      if (data.documentUpdated) {
+        setDocumentsRefreshKey(prev => prev + 1)
+      }
       setBotState("talking")
-    } catch (err) {
-      setMessages(prev => [...prev, { id: nanoid(), role: "assistant", content: "Error talking to the AI." }])
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error talking to the AI."
+      setMessages(prev => [...prev, { id: nanoid(), role: "assistant", content: message }])
       setBotState("waiting")
     }
   }
@@ -190,7 +198,7 @@ export default function Home() {
             )}
 
             {activeSection === "docs" && (
-              <DocumentsSection onCreate={() => {}} />
+              <DocumentsSection key={documentsRefreshKey} onCreate={() => {}} />
             )}
 
             {activeSection === "graph" && (

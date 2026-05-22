@@ -1,36 +1,144 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Poko
 
-## Getting Started
+A notes and assistant app with a retro ASCII aesthetic, inspired by tools like Obsidian. Write documents, explore them in a relationship graph, and chat with **Poko** — an assistant powered by [Groq](https://groq.com/) (Llama 3.3 70B) that can answer questions, list your notes, and edit them in natural language.
 
-First, run the development server:
+## Features
+
+- **Authentication** — Sign up and log in with bcrypt-hashed passwords and JWT sessions in httpOnly cookies.
+- **Documents** — Create, search, open, and delete notes. [CodeMirror](https://codemirror.net/) editor with hashtag highlighting (`#tag`).
+- **Graph** — Interactive canvas of nodes and edges: each document is a node; hashtags create `tag` nodes and automatic edges when content is saved.
+- **Chat with Poko** — Spanish-speaking assistant with an animated ASCII avatar (waiting, thinking, talking).
+  - General conversation with the model.
+  - **List documents** — e.g. *"show me my documents"*.
+  - **Edit documents** — e.g. *"fill in the document called X with …"*; the AI drafts content and saves it to the database.
+- **Profile** — User info and sign out.
+
+## Tech stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Next.js 16 (App Router), React 19, Tailwind CSS 4 |
+| Backend | Next.js API Routes |
+| Database | PostgreSQL 16 + **pgvector** extension |
+| ORM | Prisma 7 (`@prisma/adapter-pg`) |
+| AI | Groq SDK — `llama-3.3-70b-versatile` |
+| Auth | JWT (`jsonwebtoken`) + cookies |
+
+## Requirements
+
+- [Node.js](https://nodejs.org/) 20+
+- [Docker](https://www.docker.com/) (for local PostgreSQL) or a PostgreSQL instance with pgvector
+- [Groq](https://console.groq.com/) account and API key
+
+## Setup
+
+### 1. Clone and install dependencies
+
+```bash
+git clone https://github.com/martetosca9/poko-app.git
+cd poko-app
+npm install
+```
+
+### 2. Environment variables
+
+Create `.env` or `.env.local` in the project root:
+
+```env
+# PostgreSQL (port 5433 if using this repo's docker-compose)
+DATABASE_URL="postgresql://postgres:postgres@localhost:5433/poko_app"
+
+# Secret for signing JWTs (use a long random value in production)
+JWT_SECRET="your-jwt-secret"
+
+# Groq API key — required for chat and document editing
+GROQ_API_KEY="gsk_..."
+```
+
+### 3. Database
+
+Start PostgreSQL with pgvector:
+
+```bash
+docker compose up -d
+```
+
+Apply migrations and generate the Prisma client:
+
+```bash
+npx prisma migrate deploy
+npx prisma generate
+```
+
+### 4. Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Other scripts:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build   # production build
+npm run start   # production server
+npm run lint    # ESLint
+```
 
-## Learn More
+## Project structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+poko-app/
+├── app/
+│   ├── page.tsx              # Main shell (chat, docs, graph, profile)
+│   ├── documents/[id]/       # Single document editor
+│   └── api/
+│       ├── auth/             # login, register, logout, me
+│       ├── chat/             # Poko assistant
+│       ├── documents/        # document CRUD
+│       └── graph/            # graph nodes and edges
+├── components/               # UI (ASCII, chat, graph, documents…)
+├── lib/
+│   ├── db.ts                 # Prisma client
+│   ├── auth.ts               # JWT and session
+│   └── embeddings.ts         # document chunking (vector search pending)
+├── prisma/
+│   └── schema.prisma         # User, Document, GraphNode, Message, etc.
+└── docker-compose.yml        # Postgres + pgvector on port 5433
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Main API
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Method | Route | Description |
+|--------|-------|-------------|
+| `POST` | `/api/auth/register` | Register user |
+| `POST` | `/api/auth/login` | Log in |
+| `POST` | `/api/auth/logout` | Log out |
+| `GET` | `/api/auth/me` | Current user |
+| `GET` / `POST` | `/api/documents` | List / create documents |
+| `GET` / `PATCH` / `DELETE` | `/api/documents/[id]` | Read / update / delete |
+| `GET` | `/api/graph` | User graph data |
+| `POST` | `/api/chat` | Message to assistant |
 
-## Deploy on Vercel
+## Chat: usage examples
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- General question: *"What is photosynthesis?"*
+- List notes: *"list my documents"*
+- Edit a note: *"fill in the document 'Ideas' with: …"* or *"update note X with …"*
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+After editing a document from chat, the **Documents** section refreshes automatically.
+
+## Implementation notes
+
+- Documents are split into **chunks** on save (`lib/embeddings.ts`). Semantic vector search is defined in the schema (`vector(768)`) but **disabled** for now; embedding retrieval returns an empty list until enabled.
+- The data model includes `Conversation` and `Message` for persistent history; the main page chat is currently **in-memory** on the client (the sidebar UI references `/api/conversations`, which is not implemented yet).
+- If `GROQ_API_KEY` is missing or invalid, chat returns an error asking you to check the variable and restart the server.
+
+## Parallel development (Cursor / Visual Studio)
+
+The project is a normal folder on disk. Changes saved in one editor appear in the other when you reload the file. Avoid editing the same unsaved file in both editors at once to prevent overwriting changes.
+
+## License
+
+Private project (`"private": true` in `package.json`). Contact the author for use and distribution.
