@@ -49,6 +49,23 @@ function extractQuotedValue(message: string, patterns: RegExp[]) {
     return null
 }
 
+function cleanExtractedTitle(title: string) {
+    return title
+        .replace(/^["'“”]+|["'“”]+$/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+}
+
+function stripDocumentReference(message: string, title: string) {
+    const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+
+    return message
+        .replace(new RegExp(`\\b(?:el\\s+|mi\\s+)?doc(?:umento)?\\s+(?:que\\s+)?(?:se\\s+llama|llamado|llamada|titulado|titulada)\\s+["'“”]?${escapedTitle}["'“”]?`, "i"), "")
+        .replace(new RegExp(`\\b(?:el\\s+|mi\\s+)?doc(?:umento)?\\s+["'“”]${escapedTitle}["'“”]`, "i"), "")
+        .replace(/\s+/g, " ")
+        .trim()
+}
+
 function getCreateDocumentRequest(message: string) {
     const normalized = normalize(message)
     if (!/\b(crea|crear|crees|crear|hace|hacer|genera|generar)\b/.test(normalized)) return null
@@ -67,25 +84,338 @@ function getCreateDocumentRequest(message: string) {
     return { title, contentInstruction }
 }
 
+function isDocumentUpdateFollowUp(message: string) {
+    const normalized = normalize(message)
+    return /\b(fijate|fijate de nuevo|intentalo|intentalo de nuevo|prueba otra vez|de nuevo|otra vez|ahora si|revisa|revisalo|volve a intentar|ahora esa info|esa info|no veo|no aparece|no esta guardado|no lo rellenaste|no lo guardaste|porque no)\b/.test(normalized)
+}
+
+const DOCUMENT_EDIT_VERB =
+    /\b(rellen\w*|complet\w*|actualiz\w*|edit\w*|modific\w*|escrib\w*|agreg\w*|anad\w*|añad\w*|pon\w*|guard\w*|llen\w*|met\w*|insert\w*|copi\w*|pas\w*)\b/
+
 function getUpdateDocumentRequest(message: string) {
     const normalized = normalize(message)
-    const asksForUpdate = /\b(rellena|rellenar|completa|completar|actualiza|actualizar|edita|editar|modifica|modificar|escribe|escribir|agrega|agregar|anade|anadir|añade|añadir)\b/.test(normalized)
-    const mentionsDocument = /\b(doc|documento)\b/.test(normalized)
+    const asksForUpdate = DOCUMENT_EDIT_VERB.test(normalized)
+    const mentionsDocument = /\b(doc|documento|nota|archivo)\b/.test(normalized)
     if (!asksForUpdate || !mentionsDocument) return null
 
-    const title = extractQuotedValue(message, [
+    const rawTitle = extractQuotedValue(message, [
         /documento\s+["'“”]([^"'“”]+)["'“”]/i,
         /doc\s+["'“”]([^"'“”]+)["'“”]/i,
+        /(?:llamado|llamada|titulado|titulada)\s+["'“”']([^"'“”']+)["'“”']/i,
         /(?:llamado|llamada|titulado|titulada)\s+["'“”]([^"'“”]+)["'“”]/i,
+        /(?:documento|doc)\s+(?:que\s+)?(?:se\s+llama|llamado|llamada|titulado|titulada)\s+([^,.]+?)(?:\s*$|\s+con\b|\s+sobre\b|\s+acerca\s+de\b|[,.])/i,
     ])
+
+    if (!rawTitle) return null
+
+    const title = cleanExtractedTitle(rawTitle)
+    if (!title) return null
+
+    const messageWithoutDocumentReference = stripDocumentReference(message, title)
+
+    const contentInstruction =
+        extractQuotedValue(messageWithoutDocumentReference, [
+            /(?:rellen\w*|complet\w*|actualiz\w*|edit\w*|modific\w*|escrib\w*|agreg\w*|anad\w*|añad\w*|pon\w*|guard\w*|llen\w*|met\w*)\s+(.+)$/i,
+        ]) ?? messageWithoutDocumentReference
+
+    return { title, contentInstruction }
+}
+
+function hasDocumentEditCue(message: string) {
+    return DOCUMENT_EDIT_VERB.test(normalize(message))
+}
+
+function wantsDocumentPersist(message: string) {
+    const normalized = normalize(message)
+    return (
+        hasDocumentEditCue(message) ||
+        isDocumentUpdateFollowUp(message) ||
+        (/\b(doc|documento|nota|archivo)\b/.test(normalized) &&
+            /\b(mete|mete\w*|guard\w*|insert\w*|copi\w*|pas\w*|ahi)\b/.test(normalized))
+    )
+}
+
+function findReferencedDocumentTitle(message: string, documents: { title: string }[]) {
+    const normalizedMessage = normalize(message)
+    const sorted = [...documents].sort((a, b) => b.title.length - a.title.length)
+
+    for (const document of sorted) {
+        const normalizedTitle = normalize(document.title)
+        if (normalizedTitle.length < 2) continue
+        if (normalizedMessage.includes(normalizedTitle)) return document.title
+    }
+
+    // Título parcial: "consonantes" → "consonantes (creado por mi)"
+    for (const document of sorted) {
+        const normalizedTitle = normalize(document.title)
+        const tokens = normalizedMessage.split(/\s+/).filter(token => token.length >= 4)
+        for (const token of tokens) {
+            if (normalizedTitle.includes(token) && token.length >= Math.min(6, normalizedTitle.length)) {
+                return document.title
+            }
+        }
+    }
+
+    const quotedMatch = message.match(/["'“”']([^"'“”']{2,})["'“”']/)
+    if (quotedMatch?.[1]) {
+        const quoted = normalize(quotedMatch[1])
+        const match = sorted.find(document => {
+            const normalizedTitle = normalize(document.title)
+            return normalizedTitle.includes(quoted) || quoted.includes(normalizedTitle)
+        })
+        if (match) return match.title
+    }
+
+    return null
+}
+
+function findDocumentTitleFromRecentUserMessages(
+    recentMessages: { role: string; content: string }[],
+    documents: { title: string }[]
+) {
+    for (const recentMessage of recentMessages) {
+        if (recentMessage.role !== "user") continue
+        const title = findReferencedDocumentTitle(recentMessage.content, documents)
+        if (title) return title
+    }
+    return null
+}
+
+function extractDocumentBodyFromAssistantReply(content: string) {
+    const lines = content.split("\n")
+    const body: string[] = []
+
+    for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) {
+            if (body.length > 0) body.push("")
+            continue
+        }
+        if (/^(en el documento|fuente:|puedo rellenarlo|ahora se encuentra)/i.test(trimmed)) continue
+        if (/^["'“”].*["'“”']$/.test(trimmed)) continue
+        body.push(line)
+    }
+
+    return body.join("\n").trim()
+}
+
+function getPersistFromPriorAssistantContent(
+    message: string,
+    recentMessages: { role: string; content: string }[],
+    documents: { title: string }[]
+) {
+    const normalized = normalize(message)
+    const wantsPriorContent =
+        /\b(mete|mete\w*|guard\w*|insert\w*|pon\w*|esa info|ahora esa|lo que dijiste|el texto)\b/.test(normalized) ||
+        /\b(no\s+veo|no\s+aparece|no\s+esta|rellenaste|guardaste)\b/.test(normalized)
+
+    if (!wantsPriorContent) return null
+
+    const title =
+        findReferencedDocumentTitle(message, documents) ??
+        findDocumentTitleFromRecentUserMessages(recentMessages, documents)
 
     if (!title) return null
 
-    const contentInstruction = extractQuotedValue(message, [
-        /(?:con|sobre|acerca de)\s+(.+)$/i,
-    ]) ?? message
+    const lastAssistant = recentMessages.find(
+        turn => turn.role === "assistant" && turn.content.trim().length > 80
+    )
+    if (!lastAssistant) return null
+
+    const content = extractDocumentBodyFromAssistantReply(lastAssistant.content)
+    if (content.length < 40) return null
+
+    return { title, content }
+}
+
+function getUpdateDocumentRequestFromInventory(
+    message: string,
+    documents: { title: string }[]
+) {
+    if (!hasDocumentEditCue(message)) return null
+
+    const title = findReferencedDocumentTitle(message, documents)
+    if (!title) return null
+
+    const contentInstruction = stripDocumentReference(message, title).trim() || message.trim()
+    if (!contentInstruction) return null
 
     return { title, contentInstruction }
+}
+
+function getUpdateDocumentRequestFromHistory(
+    message: string,
+    recentMessages: { role: string; content: string }[],
+    documents: { title: string }[]
+) {
+    if (!isDocumentUpdateFollowUp(message)) return null
+
+    for (const recentMessage of recentMessages) {
+        if (recentMessage.role !== "user") continue
+        const priorRequest =
+            getUpdateDocumentRequest(recentMessage.content) ??
+            getUpdateDocumentRequestFromInventory(recentMessage.content, documents)
+
+        if (!priorRequest) continue
+
+        return {
+            title: priorRequest.title,
+            contentInstruction: priorRequest.contentInstruction,
+        }
+    }
+
+    return null
+}
+
+async function detectDocumentEditIntentWithLLM(
+    message: string,
+    documents: { title: string }[],
+    recentMessages: { role: string; content: string }[]
+) {
+    if (documents.length === 0) return null
+
+    const referencedTitle = findReferencedDocumentTitle(message, documents)
+    const hasEditCue = hasDocumentEditCue(message)
+    const followUp = isDocumentUpdateFollowUp(message)
+
+    if (!hasEditCue && !followUp) return null
+    if (!referencedTitle && !followUp && !/\b(doc|documento|nota|archivo)\b/.test(normalize(message))) {
+        return null
+    }
+
+    const titles = documents.map(document => document.title).join(" | ")
+    const conversation = recentMessages
+        .slice()
+        .reverse()
+        .slice(-8)
+        .map(turn => `${turn.role}: ${turn.content.replace(/\s+/g, " ").slice(0, 320)}`)
+        .join("\n")
+
+    try {
+        const completion = await groq.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            temperature: 0,
+            response_format: { type: "json_object" },
+            messages: [
+                {
+                    role: "system",
+                    content: [
+                        "Detectá si el usuario quiere MODIFICAR y GUARDAR el contenido de un documento existente de su inventario.",
+                        `Títulos válidos (usá uno EXACTO): ${titles}`,
+                        'Respondé solo JSON: {"action":"none"} o {"action":"update","title":"<título exacto>","contentInstruction":"<qué debe contener el documento>"}',
+                        "Si el mensaje es un seguimiento (ej. fijate de nuevo), usá mensajes anteriores del usuario para inferir título e instrucción.",
+                        'Si no pide editar/guardar contenido en un documento existente, respondé {"action":"none"}.',
+                    ].join(" "),
+                },
+                {
+                    role: "user",
+                    content: `Conversación reciente:\n${conversation || "(vacía)"}\n\nMensaje actual:\n${message}`,
+                },
+            ],
+        })
+
+        const parsed = JSON.parse(completion.choices[0].message.content ?? "{}") as {
+            action?: string
+            title?: string
+            contentInstruction?: string
+        }
+
+        if (parsed.action !== "update" || !parsed.title || !parsed.contentInstruction) return null
+
+        const parsedTitle = parsed.title.trim()
+        const exactTitle =
+            documents.find(document => normalize(document.title) === normalize(parsedTitle))?.title ??
+            findReferencedDocumentTitle(parsedTitle, documents) ??
+            referencedTitle
+
+        if (!exactTitle) return null
+
+        return {
+            title: exactTitle,
+            contentInstruction: parsed.contentInstruction.trim(),
+        }
+    } catch {
+        return null
+    }
+}
+
+type DocumentSaveRequest = {
+    title: string
+    contentInstruction: string
+    useRawContent?: boolean
+}
+
+async function resolveDocumentSaveRequest(
+    message: string,
+    recentMessages: { role: string; content: string }[],
+    documents: { title: string }[]
+): Promise<DocumentSaveRequest | null> {
+    const priorContent = getPersistFromPriorAssistantContent(message, recentMessages, documents)
+    if (priorContent) {
+        return {
+            title: priorContent.title,
+            contentInstruction: priorContent.content,
+            useRawContent: true,
+        }
+    }
+
+    const structured =
+        getUpdateDocumentRequest(message) ??
+        getUpdateDocumentRequestFromInventory(message, documents) ??
+        getUpdateDocumentRequestFromHistory(message, recentMessages, documents) ??
+        (await detectDocumentEditIntentWithLLM(message, documents, recentMessages))
+
+    return structured
+}
+
+async function resolveDocumentForUser(userId: string, title: string) {
+    const exact = await prisma.document.findFirst({
+        where: {
+            userId,
+            title: { equals: title, mode: "insensitive" },
+        },
+        select: { id: true, title: true },
+    })
+    if (exact) return exact
+
+    const documents = await prisma.document.findMany({
+        where: { userId },
+        select: { id: true, title: true },
+    })
+
+    const normalizedSearch = normalize(title)
+    const sorted = [...documents].sort((a, b) => b.title.length - a.title.length)
+
+    return (
+        sorted.find(document => normalize(document.title) === normalizedSearch) ??
+        sorted.find(document => normalize(document.title).includes(normalizedSearch)) ??
+        sorted.find(document => normalizedSearch.includes(normalize(document.title))) ??
+        null
+    )
+}
+
+async function persistDocumentUpdate(
+    userId: string,
+    title: string,
+    contentInstruction: string,
+    useRawContent = false
+) {
+    const content = useRawContent
+        ? contentInstruction
+        : await generateDocumentContent(title, contentInstruction)
+
+    const document = await updateDocumentForUser(userId, title, content)
+
+    const reply = document
+        ? [
+            `Guardé los cambios en el documento "${document.title}". Podés verlo en la sección Documents.`,
+            "",
+            "Contenido:",
+            content,
+        ].join("\n")
+        : `No encontré un documento llamado "${title}". Revisá el título exacto en Documents.`
+
+    return { reply, document, content }
 }
 
 async function generateDocumentContent(title: string, instruction: string) {
@@ -107,13 +437,7 @@ async function generateDocumentContent(title: string, instruction: string) {
 }
 
 async function updateDocumentForUser(userId: string, title: string, content: string) {
-    const document = await prisma.document.findFirst({
-        where: {
-            userId,
-            title: { equals: title, mode: "insensitive" },
-        },
-        select: { id: true, title: true },
-    })
+    const document = await resolveDocumentForUser(userId, title)
 
     if (!document) return null
 
@@ -223,22 +547,29 @@ export async function POST(req: Request) {
         },
     })
 
-    const updateDocumentRequest = getUpdateDocumentRequest(message)
-    if (updateDocumentRequest) {
-        const content = await generateDocumentContent(
-            updateDocumentRequest.title,
-            updateDocumentRequest.contentInstruction
-        )
+    const [recentMessagesForFollowUp, documentInventory] = await Promise.all([
+        prisma.message.findMany({
+            where: { conversationId: conversation.id },
+            orderBy: { createdAt: "desc" },
+            take: 8,
+            select: { role: true, content: true },
+        }),
+        getDocumentInventory(session.userId),
+    ])
 
-        const document = await updateDocumentForUser(session.userId, updateDocumentRequest.title, content)
-        const reply = document
-            ? [
-                `Actualicé el documento "${document.title}".`,
-                "",
-                "Contenido:",
-                content,
-            ].join("\n")
-            : `No encontré un documento llamado "${updateDocumentRequest.title}".`
+    const documentSaveRequest = await resolveDocumentSaveRequest(
+        message,
+        recentMessagesForFollowUp,
+        documentInventory
+    )
+
+    if (documentSaveRequest) {
+        const { reply, document } = await persistDocumentUpdate(
+            session.userId,
+            documentSaveRequest.title,
+            documentSaveRequest.contentInstruction,
+            documentSaveRequest.useRawContent
+        )
 
         await prisma.message.create({
             data: {
@@ -251,6 +582,7 @@ export async function POST(req: Request) {
         return NextResponse.json({
             reply,
             conversationId: conversation.id,
+            documentUpdated: Boolean(document),
             updatedDocument: document
                 ? {
                     id: document.id,
@@ -258,6 +590,21 @@ export async function POST(req: Request) {
                 }
                 : null,
         })
+    }
+
+    if (wantsDocumentPersist(message)) {
+        const titles = documentInventory.map(document => document.title).join(", ") || "(ninguno)"
+        const reply = `No pude guardar en un documento. Títulos disponibles: ${titles}. Nombrá uno exacto, por ejemplo: "guardá esto en el documento consonantes (creado por mi)".`
+
+        await prisma.message.create({
+            data: {
+                conversationId: conversation.id,
+                role: "assistant",
+                content: reply,
+            },
+        })
+
+        return NextResponse.json({ reply, conversationId: conversation.id })
     }
 
     const createDocumentRequest = getCreateDocumentRequest(message)
@@ -294,7 +641,6 @@ export async function POST(req: Request) {
     }
 
     if (isDocumentListRequest(message)) {
-        const documentInventory = await getDocumentInventory(session.userId)
         const reply = formatDocumentList(documentInventory)
 
         await prisma.message.create({
@@ -308,7 +654,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ reply, conversationId: conversation.id })
     }
 
-    const [recentMessages, relevantChunks, documentInventory, conversationMemory, userMemory] = await Promise.all([
+    const [recentMessages, relevantChunks, conversationMemory, userMemory] = await Promise.all([
         prisma.message.findMany({
             where: { conversationId: conversation.id },
             orderBy: { createdAt: "desc" },
@@ -316,7 +662,6 @@ export async function POST(req: Request) {
             select: { role: true, content: true },
         }),
         searchRelevantChunks(message, session.userId, 5),
-        getDocumentInventory(session.userId),
         getRecentConversationMemory(session.userId, conversation.id),
         rememberFromMessage(session.userId, message),
     ])
@@ -357,6 +702,8 @@ export async function POST(req: Request) {
                     "Para responder sobre el contenido de un documento, usá Fragmentos relevantes y Vista previa del inventario.",
                     "Si respondés usando contenido de documentos, mencioná la fuente con 'Fuente: Nombre del documento'.",
                     "Si el usuario usa referencias como 'ese documento' o 'el último', inferí el referente desde los mensajes recientes y el inventario.",
+                    "NUNCA digas que rellenaste, actualizaste o guardaste un documento. Solo la app persiste cambios; vos solo respondés con texto en el chat.",
+                    "Si el usuario pide guardar contenido en un documento, decile que use verbos como rellenar/actualizar/meter/guardar y nombre el documento; los cambios aparecen en la sección Documents cuando la app confirma 'Guardé los cambios'.",
                     "No afirmes que creaste, actualizaste, editaste o borraste un documento salvo que la app haya ejecutado una acción real y esa acción aparezca en el contexto inmediato.",
                     "Si el inventario o los fragmentos no contienen la respuesta, decilo con claridad y no inventes.",
                     "Evitá cerrar con preguntas genéricas cuando solo estás listando o resumiendo datos.",
