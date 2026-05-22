@@ -19,7 +19,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                 {isUser ? "user@poko:~$" : "poko@system:~>"}
             </span>
             <div
-                className={`px-4 py-2 text-sm font-mono border ${
+                className={`max-w-full whitespace-pre-wrap break-words px-4 py-2 text-sm font-mono leading-relaxed border ${
                     isUser
                         ? "border-neutral-600 bg-neutral-900 text-neutral-300"
                         : "border-neutral-700 bg-neutral-950 text-green-400"

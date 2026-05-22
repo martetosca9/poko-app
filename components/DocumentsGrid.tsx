@@ -15,7 +15,7 @@ type Props = {
 
 export default function DocumentsGrid({ documents, onDelete }: Props) {
     return (
-        <div className="grid grid-cols-3 gap-4 p-6">
+        <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
             {documents.map((doc) => (
                 <div key={doc.id} className="group relative border border-neutral-800 bg-neutral-950 p-4 hover:border-neutral-600 transition">
                     <Link href={`/documents/${doc.id}`} className="block">

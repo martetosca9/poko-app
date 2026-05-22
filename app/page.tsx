@@ -13,6 +13,9 @@ import DocumentsSection from "@/components/DocumentsSection"
 import ProfileSection from "@/components/ProfileSection"
 import LoginPage from "@/components/LoginPage"
 import GraphView from "@/components/Graphview"
+import { Volume2, VolumeX } from "lucide-react"
+
+const CHAT_SOUND_STORAGE_KEY = "poko-chat-sound-enabled"
 
 type Message = {
   id: string
@@ -27,14 +30,30 @@ type User = {
   createdAt: string
 }
 
+function createInitialMessages(): Message[] {
+  return [
+    {
+      id: nanoid(),
+      role: "assistant",
+      content: "Ask any question..."
+    }
+  ]
+}
+
 export default function Home() {
   const [authed, setAuthed] = useState<boolean | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSection, setActiveSection] = useState<"chat" | "docs" | "graph" | "profile">("docs")
   const [botState, setBotState] = useState<"waiting" | "thinking" | "talking" | "researching">("waiting")
-  const [documentsRefreshKey, setDocumentsRefreshKey] = useState(0)
-  const handleTalkingDone = useCallback(() => setBotState("waiting"), [])
+  const [conversationId, setConversationId] = useState<string | null>(null)
+  const [conversationsRefreshKey, setConversationsRefreshKey] = useState(0)
+  const [animatedMessageId, setAnimatedMessageId] = useState<string | null>(null)
+  const [chatSoundEnabled, setChatSoundEnabled] = useState(true)
+  const handleTalkingDone = useCallback(() => {
+    setBotState("waiting")
+    setAnimatedMessageId(null)
+  }, [])
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -59,15 +78,23 @@ export default function Home() {
     }
   }, [authed])
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: nanoid(),
-      role: "assistant",
-      content: "Ask any question..."
-    }
-  ])
+  useEffect(() => {
+    const stored = localStorage.getItem(CHAT_SOUND_STORAGE_KEY)
+    if (stored !== null) setChatSoundEnabled(stored === "true")
+  }, [])
+
+  function toggleChatSound() {
+    setChatSoundEnabled(prev => {
+      const next = !prev
+      localStorage.setItem(CHAT_SOUND_STORAGE_KEY, String(next))
+      return next
+    })
+  }
+
+  const [messages, setMessages] = useState<Message[]>(createInitialMessages)
 
   async function handleSend(text: string) {
+    const wasNewConversation = conversationId === null
     const userMessage: Message = { id: nanoid(), role: "user", content: text }
     setMessages(prev => [...prev, userMessage])
     setBotState("thinking")
@@ -76,23 +103,57 @@ export default function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ message: text, conversationId, activeSection })
       })
-      const data = await res.json().catch(() => null)
-      if (!res.ok || !data?.reply) {
-        throw new Error(data?.reply ?? "Error talking to the AI.")
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Chat request failed")
+      if (data.conversationId) setConversationId(data.conversationId)
+      if (wasNewConversation && data.conversationId) {
+        setConversationsRefreshKey(key => key + 1)
       }
-
       const assistantMessage: Message = { id: nanoid(), role: "assistant", content: data.reply }
+      setAnimatedMessageId(assistantMessage.id)
       setMessages(prev => [...prev, assistantMessage])
       if (data.documentUpdated) {
         setDocumentsRefreshKey(prev => prev + 1)
       }
       setBotState("talking")
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Error talking to the AI."
-      setMessages(prev => [...prev, { id: nanoid(), role: "assistant", content: message }])
+    } catch {
+      setAnimatedMessageId(null)
+      setMessages(prev => [...prev, { id: nanoid(), role: "assistant", content: "Error talking to the AI." }])
       setBotState("waiting")
+    }
+  }
+
+  function handleNewConversation() {
+    setConversationId(null)
+    setMessages(createInitialMessages())
+    setAnimatedMessageId(null)
+    setBotState("waiting")
+    setActiveSection("chat")
+  }
+
+  async function handleSelectConversation(id: string) {
+    try {
+      const res = await fetch(`/api/conversations/${id}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Conversation request failed")
+
+      setConversationId(data.conversation.id)
+      setMessages(
+        data.conversation.messages
+          .filter((msg: { role: string }) => msg.role === "user" || msg.role === "assistant")
+          .map((msg: { id: string; role: "user" | "assistant"; content: string }) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+          }))
+      )
+      setAnimatedMessageId(null)
+      setBotState("waiting")
+      setActiveSection("chat")
+    } catch {
+      setMessages(prev => [...prev, { id: nanoid(), role: "assistant", content: "Error loading conversation." }])
     }
   }
 
@@ -137,7 +198,15 @@ export default function Home() {
         />
 
         <div className="flex w-full flex-1 overflow-hidden pt-10">
-          {sidebarOpen && <Sidebar activeSection={activeSection} />}
+          {sidebarOpen && (
+            <Sidebar
+              activeSection={activeSection}
+              activeConversationId={conversationId}
+              conversationsRefreshKey={conversationsRefreshKey}
+              onNewConversation={handleNewConversation}
+              onSelectConversation={handleSelectConversation}
+            />
+          )}
 
           <main className="flex flex-1 flex-col bg-neutral-900/40">
             <header className="flex items-center gap-3 border-b border-neutral-800 px-4 py-2">
@@ -153,45 +222,75 @@ export default function Home() {
                 {activeSection === "graph" && "Graph"}
                 {activeSection === "profile" && "Profile"}
               </h1>
+              {activeSection === "chat" && (
+                <button
+                  type="button"
+                  onClick={toggleChatSound}
+                  title={chatSoundEnabled ? "Desactivar sonido del bot" : "Activar sonido del bot"}
+                  aria-label={chatSoundEnabled ? "Desactivar sonido del bot" : "Activar sonido del bot"}
+                  aria-pressed={chatSoundEnabled}
+                  className={`ml-auto border px-2 py-1 text-xs transition ${
+                    chatSoundEnabled
+                      ? "border-neutral-600 text-neutral-300 hover:border-green-700 hover:text-green-400"
+                      : "border-neutral-700 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300"
+                  }`}
+                >
+                  {chatSoundEnabled ? (
+                    <Volume2 className="h-3.5 w-3.5" aria-hidden />
+                  ) : (
+                    <VolumeX className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                </button>
+              )}
             </header>
 
             {activeSection === "chat" && (
               <>
-                <div className="flex-1 overflow-hidden flex flex-row">
-                  <div className="flex-1 overflow-hidden flex flex-col max-w-3xl">
-                    <ChatMessages messages={messages} botState={botState} onTalkingDone={handleTalkingDone} />
-                  </div>
+                <div className="flex-1 overflow-hidden px-4">
+                  <div className="mx-auto grid h-full w-full max-w-6xl grid-cols-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="min-w-0 overflow-hidden flex flex-col">
+                      <ChatMessages
+                        messages={messages}
+                        botState={botState}
+                        animatedMessageId={animatedMessageId}
+                        onTalkingDone={handleTalkingDone}
+                        soundEnabled={chatSoundEnabled}
+                      />
+                    </div>
 
-                  <div className="hidden lg:block relative pt-8 px-6">
-                    <div className="bot-panel-border">
-                      <div className="bg-neutral-950">
-                        <div
-                          className="p-4"
-                          style={{
-                            filter: botState === "waiting"
-                              ? "drop-shadow(0 0 2px #14532d)"
-                              : botState === "thinking"
-                                ? "drop-shadow(0 0 10px #22c55e) drop-shadow(0 0 20px #16a34a)"
-                                : "drop-shadow(0 0 15px #22c55e) drop-shadow(0 0 30px #16a34a) drop-shadow(0 0 45px #15803d)",
-                            transition: "filter 0.4s ease"
-                          }}
-                        >
-                          <div className="text-[10px] leading-none text-green-400">
-                            <AsciiBot state={botState} />
+                    <div className="relative hidden min-w-0 px-4 pt-8 xl:block">
+                      <div className="bot-panel-border mx-auto w-fit">
+                        <div className="bg-neutral-950">
+                          <div
+                            className="p-4"
+                            style={{
+                              filter: botState === "waiting"
+                                ? "drop-shadow(0 0 2px #14532d)"
+                                : botState === "thinking"
+                                  ? "drop-shadow(0 0 10px #22c55e) drop-shadow(0 0 20px #16a34a)"
+                                  : "drop-shadow(0 0 15px #22c55e) drop-shadow(0 0 30px #16a34a) drop-shadow(0 0 45px #15803d)",
+                              transition: "filter 0.4s ease"
+                            }}
+                          >
+                            <div className="text-[10px] leading-none text-green-400">
+                              <AsciiBot state={botState} />
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="absolute bottom-4 left-6">
-                      <AsciiCat />
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                        <AsciiCat />
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <footer className="border-t border-neutral-800 px-4 py-3">
-                  <div className="max-w-3xl">
-                    <ChatInput onSend={handleSend} />
+                  <div className="mx-auto w-full max-w-6xl">
+                    <div className="w-full xl:max-w-[calc(100%-320px)]">
+                      <ChatInput onSend={handleSend} />
+                    </div>
                   </div>
                 </footer>
               </>

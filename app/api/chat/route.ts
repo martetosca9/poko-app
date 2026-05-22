@@ -2,302 +2,396 @@ import { NextResponse } from "next/server"
 import Groq from "groq-sdk"
 import { prisma } from "@/lib/db"
 import { getSession } from "@/lib/auth"
-import { chunkAndEmbed } from "@/lib/embeddings"
+import { chunkAndEmbed, getDocumentInventory, searchRelevantChunks } from "@/lib/embeddings"
+import { formatUserMemory, MEMORY_CONVERSATION_TITLE, rememberFromMessage } from "@/lib/memory"
 
-type DocumentListItem = {
-    id: string
-    title: string
-    content: string
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+
+function makeTitle(message: string) {
+    const compact = message.replace(/\s+/g, " ").trim()
+    return compact.length > 48 ? `${compact.slice(0, 48)}...` : compact || "Untitled chat"
 }
 
-const EDIT_ACTION_PATTERN = /\b(rellen[aáo]|rellenala|rellenalo|llen[aáo]|llenala|llenalo|edit[aá]|actualiz[aá]|modific[aá]|cambi[aá]|escrib[ií]|pon[eé]|agreg[aá])\b/i
-const DOCUMENT_REFERENCE_PATTERN = /\b(documento|doc|nota|archivo)\b|(?:\b(?:es[aeo]|la|lo|el)\s+(?:q|que)\s+(?:dice|se\s+llama|contiene))|\b(rellenala|rellenalo|llenala|llenalo)\b/i
-const LIST_DOCUMENTS_PATTERN = /\b(list[aá]r?|mostr[aá]r?|ver|cu[aá]les|dame|decime)\b.*\b(mis\s+)?(documentos|docs|notas|archivos)\b|\b(mis\s+)?(documentos|docs|notas|archivos)\b.*\b(list[aá]|ten[eé]s|hay)\b/i
-
-function createGroqClient() {
-    const apiKey = process.env.GROQ_API_KEY
-    if (!apiKey) throw new Error("Missing GROQ_API_KEY")
-    return new Groq({ apiKey })
-}
-
-function normalizeText(value: string) {
-    return value
+function normalize(text: string) {
+    return text
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^\p{L}\p{N}\s_-]/gu, " ")
-        .replace(/\s+/g, " ")
-        .trim()
 }
 
-function singularish(value: string) {
-    return normalizeText(value)
-        .split(" ")
-        .map(word => word.length > 3 && word.endsWith("s") ? word.slice(0, -1) : word)
-        .join(" ")
+function isDocumentListRequest(message: string) {
+    const normalized = normalize(message)
+    const asksForDocs = /\b(doc|docs|documento|documentos)\b/.test(normalized)
+    const asksForList = /\b(lista|listar|listame|mostra|mostrar|explora|explorar|cuales|cuantos)\b/.test(normalized)
+
+    return asksForDocs && asksForList
 }
 
-function extractDocumentQuery(message: string) {
-    const explicitQuoted = message.match(/(?:documento|doc|nota|archivo)\s+(?:llamad[oa]|titulad[oa]|que\s+(?:dice|se\s+llama))?\s*["“”']([^"“”']+)["“”']/i)
-    if (explicitQuoted?.[1]) return explicitQuoted[1].trim()
+function formatDocumentList(documents: Awaited<ReturnType<typeof getDocumentInventory>>) {
+    if (documents.length === 0) return "No hay documentos guardados."
 
-    const calledQuoted = message.match(/(?:llamad[oa]|titulad[oa])\s*["“”']([^"“”']+)["“”']/i)
-    if (calledQuoted?.[1]) return calledQuoted[1].trim()
+    return [
+        "Estos son tus documentos:",
+        "",
+        ...documents.map(document => {
+            const preview = document.excerpt ? `: ${document.excerpt}` : ""
+            return `- ${document.title}${preview}`
+        }),
+    ].join("\n")
+}
 
-    const says = message.match(/(?:es[aeo]|la|lo|el)\s+(?:q|que)\s+(?:dice|se\s+llama|contiene)\s*["“”']?([\p{L}\p{N}\s_-]+?)(?:["“”']|,|\.|;|\s+y\s+|\s+con\s+|\s+(?:rellen|llen|edit|actualiz|modific|cambi)|$)/iu)
-    if (says?.[1]) return says[1].trim()
-
-    const unquoted = message.match(/(?:documento|doc|nota|archivo)\s+(?:llamad[oa]\s+|titulad[oa]\s+)?([\p{L}\p{N}\s_-]+?)(?:\s+(?:con|que|y)|,|\.|;|$)/iu)
-    if (unquoted?.[1]) {
-        const candidate = unquoted[1].trim()
-        if (!/^(llamado|llamada|titulado|titulada)$/i.test(candidate)) return candidate
+function extractQuotedValue(message: string, patterns: RegExp[]) {
+    for (const pattern of patterns) {
+        const match = message.match(pattern)
+        if (match?.[1]?.trim()) return match[1].trim()
     }
 
     return null
 }
 
-function findMatchingDocument(docs: DocumentListItem[], query: string | null, message: string) {
-    const normalizedMessage = normalizeText(message)
-    const normalizedQuery = query ? normalizeText(query) : null
-    const singularQuery = query ? singularish(query) : null
+function getCreateDocumentRequest(message: string) {
+    const normalized = normalize(message)
+    if (!/\b(crea|crear|crees|crear|hace|hacer|genera|generar)\b/.test(normalized)) return null
+    if (!/\b(doc|documento)\b/.test(normalized)) return null
 
-    const scored = docs
-        .map(doc => {
-            const title = normalizeText(doc.title)
-            const singularTitle = singularish(doc.title)
-            let score = 0
+    const title = extractQuotedValue(message, [
+        /(?:se llame|llamado|t[ií]tulo sea|titulo sea)\s+["'“”]([^"'“”]+)["'“”]/i,
+        /(?:se llame|llamado|t[ií]tulo sea|titulo sea)\s+([^,.]+?)(?:\s+y|\s+con|\s+que|\s*$)/i,
+    ]) ?? "Untitled"
 
-            if (normalizedQuery) {
-                if (title === normalizedQuery) score = 100
-                else if (singularTitle === singularQuery) score = 95
-                else if (title.includes(normalizedQuery)) score = 85
-                else if (normalizedQuery.includes(title)) score = 75
-                else if (singularTitle.includes(singularQuery ?? "")) score = 70
-            } else if (title && normalizedMessage.includes(title)) {
-                score = 65 + Math.min(title.length, 20)
-            }
+    const contentInstruction = extractQuotedValue(message, [
+        /(?:contenido sea|contenido es|con contenido)\s+["'“”]([^"'“”]+)["'“”]/i,
+        /(?:contenido sea|contenido es|con contenido)\s+(.+)$/i,
+    ]) ?? "Escribí un texto breve para el documento."
 
-            return { doc, score }
-        })
-        .filter(item => item.score > 0)
-        .sort((a, b) => b.score - a.score)
-
-    return scored[0]?.doc ?? null
+    return { title, contentInstruction }
 }
 
-function extractEditInstruction(message: string, documentTitle: string) {
-    const normalizedTitle = documentTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    const afterCon = message.match(/\bcon\b\s*:?\s*([\s\S]+)$/i)?.[1]?.trim()
-    if (afterCon) return afterCon
+function getUpdateDocumentRequest(message: string) {
+    const normalized = normalize(message)
+    const asksForUpdate = /\b(rellena|rellenar|completa|completar|actualiza|actualizar|edita|editar|modifica|modificar|escribe|escribir|agrega|agregar|anade|anadir|añade|añadir)\b/.test(normalized)
+    const mentionsDocument = /\b(doc|documento)\b/.test(normalized)
+    if (!asksForUpdate || !mentionsDocument) return null
 
-    const afterTitle = message.match(new RegExp(`${normalizedTitle}["“”']?\\s*,?\\s*([\\s\\S]+)$`, "i"))?.[1]?.trim()
-    if (afterTitle) return afterTitle
+    const title = extractQuotedValue(message, [
+        /documento\s+["'“”]([^"'“”]+)["'“”]/i,
+        /doc\s+["'“”]([^"'“”]+)["'“”]/i,
+        /(?:llamado|llamada|titulado|titulada)\s+["'“”]([^"'“”]+)["'“”]/i,
+    ])
 
-    return message.trim()
+    if (!title) return null
+
+    const contentInstruction = extractQuotedValue(message, [
+        /(?:con|sobre|acerca de)\s+(.+)$/i,
+    ]) ?? message
+
+    return { title, contentInstruction }
 }
 
-async function draftDocumentContent(title: string, currentContent: string, instruction: string) {
-    const groq = createGroqClient()
+async function generateDocumentContent(title: string, instruction: string) {
     const completion = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
         messages: [
             {
                 role: "system",
-                content: [
-                    "Sos un editor de documentos dentro de una app de notas.",
-                    "Devolve solamente el contenido final del documento.",
-                    "No agregues saludos, explicaciones ni markdown fences.",
-                    "Si el usuario dio texto literal despues de 'con:' o 'texto:', usalo como contenido."
-                ].join(" ")
+                content: "Escribí solo el contenido del documento. No agregues explicación, título, markdown ni comillas.",
             },
             {
                 role: "user",
-                content: [
-                    `Titulo del documento: ${title}`,
-                    `Contenido actual: ${currentContent || "(vacio)"}`,
-                    `Pedido del usuario: ${instruction}`
-                ].join("\n")
-            }
+                content: `Título: ${title}\nInstrucción: ${instruction}`,
+            },
         ],
     })
 
     return completion.choices[0].message.content?.trim() || instruction
 }
 
-async function updateDocumentTags(documentId: string, userId: string, content: string) {
-    const tagMatches = [...content.matchAll(/#([\p{L}\p{N}_-]+)/gu)].map(m => m[1].toLowerCase())
-    const uniqueTags = [...new Set(tagMatches)]
-    const docNode = await prisma.graphNode.findFirst({ where: { documentId, userId } })
-    if (!docNode) return
-
-    const oldTagNodes = await prisma.graphNode.findMany({
-        where: { userId, type: "tag" },
-        select: { id: true }
-    })
-
-    await prisma.graphEdge.deleteMany({
+async function updateDocumentForUser(userId: string, title: string, content: string) {
+    const document = await prisma.document.findFirst({
         where: {
-            sourceId: docNode.id,
-            targetId: { in: oldTagNodes.map(node => node.id) }
-        }
+            userId,
+            title: { equals: title, mode: "insensitive" },
+        },
+        select: { id: true, title: true },
     })
 
-    for (const tag of uniqueTags) {
-        let tagNode = await prisma.graphNode.findFirst({
-            where: { userId, type: "tag", label: `#${tag}` }
-        })
-
-        if (!tagNode) {
-            tagNode = await prisma.graphNode.create({
-                data: {
-                    label: `#${tag}`,
-                    type: "tag",
-                    userId,
-                    x: Math.random() * 600 + 100,
-                    y: Math.random() * 400 + 100,
-                }
-            })
-        }
-
-        await prisma.graphEdge.upsert({
-            where: {
-                sourceId_targetId: {
-                    sourceId: docNode.id,
-                    targetId: tagNode.id
-                }
-            },
-            update: {},
-            create: {
-                sourceId: docNode.id,
-                targetId: tagNode.id,
-                userId
-            }
-        })
-    }
-}
-
-async function handleDocumentEdit(message: string) {
-    if (!EDIT_ACTION_PATTERN.test(message)) return null
-
-    const session = await getSession()
-    if (!session) {
-        return NextResponse.json({ reply: "Necesito que inicies sesion para editar documentos." }, { status: 401 })
-    }
-
-    const documents = await prisma.document.findMany({
-        where: { userId: session.userId },
-        select: { id: true, title: true, content: true },
-        orderBy: { updatedAt: "desc" }
-    })
-
-    const query = extractDocumentQuery(message)
-    const hasDocumentReference = DOCUMENT_REFERENCE_PATTERN.test(message)
-    const document = findMatchingDocument(documents, query, message)
-
-    if (!query && !hasDocumentReference && !document) return null
-
-    if (!document) {
-        const name = query ? ` llamado "${query}"` : ""
-        return NextResponse.json({ reply: `No encontre un documento${name}.` })
-    }
-
-    const instruction = extractEditInstruction(message, document.title)
-    let content: string
-
-    try {
-        content = await draftDocumentContent(document.title, document.content, instruction)
-    } catch (error) {
-        console.error("Document edit draft failed:", error)
-        return NextResponse.json({
-            reply: "No pude generar contenido porque la IA no esta configurada. Revisa GROQ_API_KEY y reinicia el servidor."
-        })
-    }
+    if (!document) return null
 
     const updatedDocument = await prisma.document.update({
         where: { id: document.id },
-        data: { content }
+        data: { content },
     })
 
     await prisma.documentChunk.deleteMany({ where: { documentId: document.id } })
-    await chunkAndEmbed(document.id, content)
-    await updateDocumentTags(document.id, session.userId, content)
 
-    return NextResponse.json({
-        reply: `Listo, actualice "${updatedDocument.title}".`,
-        documentUpdated: true,
-        document: {
-            id: updatedDocument.id,
-            title: updatedDocument.title,
-            updatedAt: updatedDocument.updatedAt,
-        }
-    })
+    if (content.trim().length > 0) {
+        await chunkAndEmbed(document.id, content)
+    }
+
+    return updatedDocument
 }
 
-async function handleDocumentList(message: string) {
-    if (!LIST_DOCUMENTS_PATTERN.test(message)) return null
+async function createDocumentForUser(userId: string, title: string, content: string) {
+    const document = await prisma.document.create({
+        data: {
+            title,
+            content,
+            userId,
+        },
+    })
 
-    const session = await getSession()
-    if (!session) {
-        return NextResponse.json({ reply: "Necesito que inicies sesion para listar tus documentos." }, { status: 401 })
+    await prisma.graphNode.create({
+        data: {
+            label: title,
+            type: "doc",
+            documentId: document.id,
+            userId,
+            x: Math.random() * 600 + 100,
+            y: Math.random() * 400 + 100,
+        },
+    })
+
+    if (content.trim().length > 0) {
+        await chunkAndEmbed(document.id, content)
     }
 
-    const documents = await prisma.document.findMany({
-        where: { userId: session.userId },
+    return document
+}
+
+async function getRecentConversationMemory(userId: string, currentConversationId: string) {
+    const conversations = await prisma.conversation.findMany({
+        where: {
+            userId,
+            id: { not: currentConversationId },
+            title: { not: MEMORY_CONVERSATION_TITLE },
+        },
         orderBy: { updatedAt: "desc" },
+        take: 4,
         select: {
             title: true,
-            updatedAt: true,
-        }
+            messages: {
+                orderBy: { createdAt: "desc" },
+                take: 4,
+                select: { role: true, content: true },
+            },
+        },
     })
 
-    if (documents.length === 0) {
-        return NextResponse.json({ reply: "No tenes documentos todavia." })
-    }
+    if (conversations.length === 0) return "No hay conversaciones anteriores relevantes."
 
-    const formatter = new Intl.DateTimeFormat("es-UY", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-    })
+    return conversations
+        .map((conversation, index) => {
+            const turns = conversation.messages
+                .reverse()
+                .map(message => `${message.role}: ${message.content.replace(/\s+/g, " ").slice(0, 240)}`)
+                .join("\n")
 
-    const list = documents
-        .map((doc, index) => `${index + 1}. ${doc.title} (${formatter.format(doc.updatedAt)})`)
-        .join("\n")
-
-    return NextResponse.json({ reply: `Tus documentos:\n${list}` })
+            return `Conversación ${index + 1}: ${conversation.title ?? "Untitled chat"}\n${turns}`
+        })
+        .join("\n\n")
 }
 
 export async function POST(req: Request) {
-    const { message } = await req.json()
-    const documentListResponse = await handleDocumentList(message)
-    if (documentListResponse) return documentListResponse
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const documentEditResponse = await handleDocumentEdit(message)
-    if (documentEditResponse) return documentEditResponse
+    const { message, conversationId, activeSection } = await req.json()
+    if (typeof message !== "string" || message.trim().length === 0) {
+        return NextResponse.json({ error: "Message is required" }, { status: 400 })
+    }
 
-    try {
-        const groq = createGroqClient()
-        const completion = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-                {
-                    role: "system",
-                    content: "Eres poko, un asistente inteligente dentro de una app estilo Obsidian. Respondés de forma concisa y directa."
-                },
-                {
-                    role: "user",
-                    content: message
-                }
-            ],
+    const conversation = conversationId
+        ? await prisma.conversation.findFirst({
+            where: { id: conversationId, userId: session.userId },
+        })
+        : await prisma.conversation.create({
+            data: {
+                title: makeTitle(message),
+                userId: session.userId,
+            },
         })
 
-        const reply = completion.choices[0].message.content ?? "Sin respuesta."
+    if (!conversation) {
+        return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
+    }
 
-        return NextResponse.json({ reply })
-    } catch (error) {
-        console.error("Chat completion failed:", error)
+    await prisma.message.create({
+        data: {
+            conversationId: conversation.id,
+            role: "user",
+            content: message,
+        },
+    })
+
+    const updateDocumentRequest = getUpdateDocumentRequest(message)
+    if (updateDocumentRequest) {
+        const content = await generateDocumentContent(
+            updateDocumentRequest.title,
+            updateDocumentRequest.contentInstruction
+        )
+
+        const document = await updateDocumentForUser(session.userId, updateDocumentRequest.title, content)
+        const reply = document
+            ? [
+                `Actualicé el documento "${document.title}".`,
+                "",
+                "Contenido:",
+                content,
+            ].join("\n")
+            : `No encontré un documento llamado "${updateDocumentRequest.title}".`
+
+        await prisma.message.create({
+            data: {
+                conversationId: conversation.id,
+                role: "assistant",
+                content: reply,
+            },
+        })
+
         return NextResponse.json({
-            reply: "No pude conectar con el modelo de IA. Revisa GROQ_API_KEY y reinicia el servidor."
+            reply,
+            conversationId: conversation.id,
+            updatedDocument: document
+                ? {
+                    id: document.id,
+                    title: document.title,
+                }
+                : null,
         })
     }
+
+    const createDocumentRequest = getCreateDocumentRequest(message)
+    if (createDocumentRequest) {
+        const content = await generateDocumentContent(
+            createDocumentRequest.title,
+            createDocumentRequest.contentInstruction
+        )
+
+        const document = await createDocumentForUser(session.userId, createDocumentRequest.title, content)
+        const reply = [
+            `Creé el documento "${document.title}".`,
+            "",
+            "Contenido:",
+            content,
+        ].join("\n")
+
+        await prisma.message.create({
+            data: {
+                conversationId: conversation.id,
+                role: "assistant",
+                content: reply,
+            },
+        })
+
+        return NextResponse.json({
+            reply,
+            conversationId: conversation.id,
+            createdDocument: {
+                id: document.id,
+                title: document.title,
+            },
+        })
+    }
+
+    if (isDocumentListRequest(message)) {
+        const documentInventory = await getDocumentInventory(session.userId)
+        const reply = formatDocumentList(documentInventory)
+
+        await prisma.message.create({
+            data: {
+                conversationId: conversation.id,
+                role: "assistant",
+                content: reply,
+            },
+        })
+
+        return NextResponse.json({ reply, conversationId: conversation.id })
+    }
+
+    const [recentMessages, relevantChunks, documentInventory, conversationMemory, userMemory] = await Promise.all([
+        prisma.message.findMany({
+            where: { conversationId: conversation.id },
+            orderBy: { createdAt: "desc" },
+            take: 12,
+            select: { role: true, content: true },
+        }),
+        searchRelevantChunks(message, session.userId, 5),
+        getDocumentInventory(session.userId),
+        getRecentConversationMemory(session.userId, conversation.id),
+        rememberFromMessage(session.userId, message),
+    ])
+
+    const documentList = documentInventory.length > 0
+        ? documentInventory
+            .map((document, index) => {
+                const preview = document.excerpt ? `\nVista previa: ${document.excerpt}` : ""
+                return `${index + 1}. ${document.title} (id: ${document.id})${preview}`
+            })
+            .join("\n")
+        : "No hay documentos guardados."
+
+    const relevantContext = relevantChunks.length > 0
+        ? relevantChunks
+            .map((chunk, index) => `Fragmento relevante ${index + 1}\nFuente: ${chunk.title}\nContenido: ${chunk.content}`)
+            .join("\n\n")
+        : "No se encontraron fragmentos relevantes para esta pregunta."
+
+    const completion = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+            {
+                role: "system",
+                content: [
+                    "Eres poko, un asistente inteligente dentro de una app estilo Obsidian.",
+                    "Respondés de forma concisa y directa.",
+                    `La sección activa actual de la app es: ${typeof activeSection === "string" ? activeSection : "desconocida"}.`,
+                    "Tenés memoria de los mensajes recientes de esta conversación.",
+                    "Tenés una memoria breve de conversaciones anteriores, pero tratala como contexto secundario.",
+                    "Tenés memoria persistente de preferencias/hechos del usuario, pero no la menciones salvo que ayude.",
+                    "Tenés acceso al inventario real de documentos del usuario incluido abajo.",
+                    "Para afirmar que un documento existe, usá solo el Inventario de documentos o Fragmentos relevantes.",
+                    "La memoria de conversación puede contener errores sobre documentos; no la uses como fuente autorizada para listar, contar o confirmar documentos.",
+                    "Si el usuario pide listar, contar, explorar o nombrar documentos, usá el Inventario de documentos, no la memoria de la charla.",
+                    "Cuando listes documentos, respondé como lista vertical: una línea por documento, usando '- Título: vista previa'.",
+                    "No incluyas IDs salvo que el usuario los pida explícitamente.",
+                    "Para responder sobre el contenido de un documento, usá Fragmentos relevantes y Vista previa del inventario.",
+                    "Si respondés usando contenido de documentos, mencioná la fuente con 'Fuente: Nombre del documento'.",
+                    "Si el usuario usa referencias como 'ese documento' o 'el último', inferí el referente desde los mensajes recientes y el inventario.",
+                    "No afirmes que creaste, actualizaste, editaste o borraste un documento salvo que la app haya ejecutado una acción real y esa acción aparezca en el contexto inmediato.",
+                    "Si el inventario o los fragmentos no contienen la respuesta, decilo con claridad y no inventes.",
+                    "Evitá cerrar con preguntas genéricas cuando solo estás listando o resumiendo datos.",
+                    "",
+                    "Memoria breve de conversaciones anteriores:",
+                    conversationMemory,
+                    "",
+                    "Memoria persistente del usuario:",
+                    formatUserMemory(userMemory),
+                    "",
+                    "Inventario de documentos:",
+                    documentList,
+                    "",
+                    "Fragmentos relevantes:",
+                    relevantContext,
+                ].join("\n")
+            },
+            ...recentMessages
+                .reverse()
+                .map(msg => ({
+                    role: msg.role,
+                    content: msg.content,
+                })),
+        ],
+    })
+
+    const reply = completion.choices[0].message.content ?? "Sin respuesta."
+
+    await prisma.message.create({
+        data: {
+            conversationId: conversation.id,
+            role: "assistant",
+            content: reply,
+        },
+    })
+
+    return NextResponse.json({ reply, conversationId: conversation.id })
 }

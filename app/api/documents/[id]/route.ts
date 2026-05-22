@@ -26,6 +26,13 @@ export async function PUT(req: Request, { params }: Params) {
 
     const { title, content } = await req.json()
 
+    const existingDocument = await prisma.document.findFirst({
+        where: { id, userId: session.userId },
+        select: { id: true },
+    })
+
+    if (!existingDocument) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
     const document = await prisma.document.update({
         where: { id },
         data: {
@@ -41,9 +48,12 @@ export async function PUT(req: Request, { params }: Params) {
         })
     }
 
-    if (content !== undefined && content.trim().length > 0) {
+    if (content !== undefined) {
         await prisma.documentChunk.deleteMany({ where: { documentId: id } })
-        chunkAndEmbed(id, content).catch(console.error)
+
+        if (content.trim().length > 0) {
+            await chunkAndEmbed(id, content)
+        }
 
         // Parsear #tags del contenido
         const tagMatches = [...content.matchAll(/#([\w]+)/g)].map(m => m[1].toLowerCase())
