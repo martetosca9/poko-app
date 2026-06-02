@@ -15,14 +15,14 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 
     return (
         <div className={`flex flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
-            <span className="text-[10px] text-neutral-600 select-none">
+            <span className="select-none text-[10px] text-neutral-500">
                 {isUser ? "user@poko:~$" : "poko@system:~>"}
             </span>
             <div
-                className={`max-w-full whitespace-pre-wrap break-words px-4 py-2 text-sm font-mono leading-relaxed border ${
+                className={`max-w-full whitespace-pre-wrap break-words rounded-lg border px-4 py-3 text-sm font-mono leading-relaxed shadow-xl shadow-black/20 backdrop-blur-md ${
                     isUser
-                        ? "border-neutral-600 bg-neutral-900 text-neutral-300"
-                        : "border-neutral-700 bg-neutral-950 text-green-400"
+                        ? "border-white/15 bg-black/45 text-neutral-200"
+                        : "border-green-900/50 bg-black/65 text-green-300 shadow-[0_0_28px_rgba(34,197,94,0.06)]"
                 }`}
             >
                 {message.content}

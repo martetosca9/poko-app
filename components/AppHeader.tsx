@@ -20,30 +20,30 @@ type Props = {
 
 export default function AppHeader({ active, onChange, user }: Props) {
     return (
-        <div className="fixed top-0 left-0 right-0 z-50 h-10 border-b border-neutral-800 bg-neutral-900 text-xs">
-            <div className="flex h-full items-center justify-between px-6">
+        <div className="fixed left-3 right-3 top-3 z-50 h-11 rounded-lg border border-white/10 bg-black/55 text-xs shadow-2xl shadow-black/40 backdrop-blur-xl">
+            <div className="flex h-full items-center justify-between px-4">
                 <div className="flex items-center overflow-hidden">
                     <div className="scale-75 origin-left">
                         <AsciiLogo />
                     </div>
                 </div>
 
-                <nav className="flex items-center gap-8">
+                <nav className="flex items-center gap-2 rounded-md border border-white/10 bg-black/45 px-1 py-1">
                     <button
                         onClick={() => onChange("chat")}
-                        className={`hover:text-neutral-100 ${active === "chat" ? "text-neutral-100" : "text-neutral-400"}`}
+                        className={`rounded px-3 py-1 transition hover:text-neutral-100 ${active === "chat" ? "bg-white/10 text-green-300 shadow-[0_0_18px_rgba(34,197,94,0.12)]" : "text-neutral-400"}`}
                     >
                         Chat
                     </button>
                     <button
                         onClick={() => onChange("docs")}
-                        className={`hover:text-neutral-100 ${active === "docs" ? "text-neutral-100" : "text-neutral-400"}`}
+                        className={`rounded px-3 py-1 transition hover:text-neutral-100 ${active === "docs" ? "bg-white/10 text-green-300 shadow-[0_0_18px_rgba(34,197,94,0.12)]" : "text-neutral-400"}`}
                     >
                         Documents
                     </button>
                     <button
                         onClick={() => onChange("graph")}
-                        className={`hover:text-neutral-100 ${active === "graph" ? "text-neutral-100" : "text-neutral-400"}`}
+                        className={`rounded px-3 py-1 transition hover:text-neutral-100 ${active === "graph" ? "bg-white/10 text-green-300 shadow-[0_0_18px_rgba(34,197,94,0.12)]" : "text-neutral-400"}`}
                     >
                         Graph
                     </button>

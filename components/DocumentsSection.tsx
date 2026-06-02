@@ -47,11 +47,11 @@ export default function DocumentsSection({ onCreate }: Props) {
     )
 
     return (
-        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800">
+        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-3 py-3">
+            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/50 px-5 py-3 shadow-xl shadow-black/20 backdrop-blur-md">
                 <div className="flex items-center gap-3">
-                    <h2 className="text-sm text-neutral-300">Your documents</h2>
-                    <span className="text-xs text-neutral-600">{documents.length} docs</span>
+                    <h2 className="text-sm text-neutral-200">Your documents</h2>
+                    <span className="text-xs text-neutral-500">{documents.length} docs</span>
                 </div>
                 <div className="flex items-center gap-3">
                     <div
@@ -68,14 +68,14 @@ export default function DocumentsSection({ onCreate }: Props) {
                             onFocus={() => setSearchFocused(true)}
                             onBlur={() => setSearchFocused(false)}
                             placeholder="> search..."
-                            className="bg-neutral-950 border border-green-900 px-3 py-1 text-xs text-green-400 outline-none caret-green-400 placeholder:text-green-900 focus:border-green-600 transition-colors"
+                            className="rounded-md border border-green-900/60 bg-black/65 px-3 py-1.5 text-xs text-green-300 outline-none caret-green-400 placeholder:text-neutral-600 transition-colors focus:border-green-600"
                         />
                     </div>
 
                     <div style={{ filter: "drop-shadow(0 0 4px #16a34a)" }}>
                         <button
                             onClick={handleCreate}
-                            className="border border-green-800 bg-green-950/40 px-3 py-1 text-xs text-green-400 hover:border-green-500 hover:bg-green-950 transition"
+                            className="rounded-md border border-green-800 bg-green-950/30 px-3 py-1.5 text-xs text-green-300 transition hover:border-green-500 hover:bg-green-950/60"
                             style={{ textShadow: "0 0 8px #22c55e" }}
                         >
                             + new

@@ -45,35 +45,35 @@ export default function Sidebar({
     }, [conversationsRefreshKey, documentsRefreshKey])
 
     return (
-        <aside className="w-56 shrink-0 border-r border-neutral-800 bg-neutral-900 flex flex-col overflow-hidden">
+        <aside className="m-3 mt-5 flex w-60 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/55 shadow-2xl shadow-black/35 backdrop-blur-xl">
 
             {activeSection === "chat" && (
                 <div className="flex flex-col overflow-hidden flex-1">
-                    <div className="flex items-center justify-between gap-2 border-b border-neutral-800 px-4 py-3">
-                        <span className="text-[10px] uppercase tracking-widest text-neutral-600">
+                    <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+                        <span className="text-[10px] uppercase tracking-widest text-neutral-500">
                             Conversations
                         </span>
                         <button
                             type="button"
                             title="New chat"
                             onClick={onNewConversation}
-                            className="flex h-6 w-6 items-center justify-center border border-neutral-800 text-neutral-500 transition hover:border-neutral-600 hover:text-neutral-100"
+                            className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-black/45 text-neutral-400 transition hover:border-green-700 hover:text-green-300"
                         >
                             <Plus size={14} strokeWidth={1.8} />
                         </button>
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         {chats.length === 0 && (
-                            <p className="px-4 py-3 text-xs text-neutral-700">No chats yet</p>
+                            <p className="px-4 py-3 text-xs text-neutral-600">No chats yet</p>
                         )}
                         {chats.map(chat => (
                             <button
                                 key={chat.id}
                                 onClick={() => onSelectConversation?.(chat.id)}
-                                className={`w-full truncate px-4 py-2 text-left text-xs transition ${
+                                className={`mx-2 my-1 w-[calc(100%-1rem)] truncate rounded-md px-3 py-2 text-left text-xs transition ${
                                     chat.id === activeConversationId
-                                        ? "bg-neutral-800 text-neutral-100"
-                                        : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+                                        ? "bg-white/10 text-green-300 shadow-[0_0_18px_rgba(34,197,94,0.10)]"
+                                        : "text-neutral-400 hover:bg-white/10 hover:text-neutral-100"
                                 }`}
                             >
                                 {chat.title ?? "Untitled chat"}
@@ -85,8 +85,8 @@ export default function Sidebar({
 
             {activeSection === "docs" && (
                 <div className="flex flex-col overflow-hidden flex-1">
-                    <div className="flex items-center justify-between gap-2 border-b border-neutral-800 px-4 py-3">
-                        <span className="text-[10px] uppercase tracking-widest text-neutral-600">
+                    <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+                        <span className="text-[10px] uppercase tracking-widest text-neutral-500">
                             Documents
                         </span>
                         {onNewDocument && (
@@ -94,7 +94,7 @@ export default function Sidebar({
                                 type="button"
                                 title="New document"
                                 onClick={onNewDocument}
-                                className="flex h-6 w-6 items-center justify-center border border-neutral-800 text-neutral-500 transition hover:border-neutral-600 hover:text-neutral-100"
+                                className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-black/45 text-neutral-400 transition hover:border-green-700 hover:text-green-300"
                             >
                                 <Plus size={14} strokeWidth={1.8} />
                             </button>
@@ -102,16 +102,16 @@ export default function Sidebar({
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         {docs.length === 0 && (
-                            <p className="px-4 py-3 text-xs text-neutral-700">No documents</p>
+                            <p className="px-4 py-3 text-xs text-neutral-600">No documents</p>
                         )}
                         {docs.map(doc => (
                             <button
                                 key={doc.id}
                                 onClick={() => router.push(`/documents/${doc.id}`)}
-                                className={`w-full truncate px-4 py-2 text-left text-xs transition ${
+                                className={`mx-2 my-1 w-[calc(100%-1rem)] truncate rounded-md px-3 py-2 text-left text-xs transition ${
                                     doc.id === activeDocumentId
-                                        ? "bg-neutral-800 text-neutral-100"
-                                        : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+                                        ? "bg-white/10 text-green-300 shadow-[0_0_18px_rgba(34,197,94,0.10)]"
+                                        : "text-neutral-400 hover:bg-white/10 hover:text-neutral-100"
                                 }`}
                             >
                                 {doc.title || "Untitled"}
@@ -123,10 +123,10 @@ export default function Sidebar({
 
             {activeSection === "graph" && (
                 <div className="flex flex-col overflow-hidden flex-1">
-                    <div className="px-4 py-3 text-[10px] uppercase tracking-widest text-neutral-600 border-b border-neutral-800">
+                    <div className="border-b border-white/10 px-4 py-3 text-[10px] uppercase tracking-widest text-neutral-500">
                         Graph
                     </div>
-                    <div className="px-4 py-3 text-xs text-neutral-700">
+                    <div className="px-4 py-3 text-xs text-neutral-600">
                         Graph navigator (soon)
                     </div>
                 </div>
@@ -134,36 +134,36 @@ export default function Sidebar({
 
             {activeSection === "profile" && (
                 <div className="flex flex-col overflow-hidden flex-1">
-                    <div className="px-4 py-3 text-[10px] uppercase tracking-widest text-neutral-600 border-b border-neutral-800">
+                    <div className="border-b border-white/10 px-4 py-3 text-[10px] uppercase tracking-widest text-neutral-500">
                         Documents
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         {docs.length === 0 && (
-                            <p className="px-4 py-3 text-xs text-neutral-700">No documents</p>
+                            <p className="px-4 py-3 text-xs text-neutral-600">No documents</p>
                         )}
                         {docs.map(doc => (
                             <button
                                 key={doc.id}
                                 onClick={() => router.push(`/documents/${doc.id}`)}
-                                className="w-full text-left px-4 py-2 text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition truncate"
+                                className="mx-2 my-1 w-[calc(100%-1rem)] truncate rounded-md px-3 py-2 text-left text-xs text-neutral-400 transition hover:bg-white/10 hover:text-neutral-100"
                             >
                                 {doc.title || "Untitled"}
                             </button>
                         ))}
                     </div>
-                    <div className="flex flex-col overflow-hidden border-t border-neutral-800">
-                        <div className="px-4 py-3 text-[10px] uppercase tracking-widest text-neutral-600 border-b border-neutral-800">
+                    <div className="flex flex-col overflow-hidden border-t border-white/10">
+                        <div className="border-b border-white/10 px-4 py-3 text-[10px] uppercase tracking-widest text-neutral-500">
                             Chats
                         </div>
                         <div className="flex-1 overflow-y-auto">
                             {chats.length === 0 && (
-                                <p className="px-4 py-3 text-xs text-neutral-700">No chats yet</p>
+                                <p className="px-4 py-3 text-xs text-neutral-600">No chats yet</p>
                             )}
                             {chats.map(chat => (
                                 <button
                                     key={chat.id}
                                     onClick={() => onSelectConversation?.(chat.id)}
-                                    className="w-full text-left px-4 py-2 text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition truncate"
+                                    className="mx-2 my-1 w-[calc(100%-1rem)] truncate rounded-md px-3 py-2 text-left text-xs text-neutral-400 transition hover:bg-white/10 hover:text-neutral-100"
                                 >
                                     {chat.title ?? "Untitled chat"}
                                 </button>

@@ -365,6 +365,14 @@ async function resolveDocumentSaveRequest(
         getUpdateDocumentRequestFromHistory(message, recentMessages, documents) ??
         (await detectDocumentEditIntentWithLLM(message, documents, recentMessages))
 
+    if (structured) {
+        const inventoryTitle = findReferencedDocumentTitle(structured.title, documents)
+        return {
+            ...structured,
+            title: inventoryTitle ?? structured.title,
+        }
+    }
+
     return structured
 }
 

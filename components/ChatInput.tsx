@@ -17,8 +17,8 @@ export default function ChatInput({ onSend }: ChatInputProps) {
     }
 
     return (
-        <div className="flex items-center gap-2 border border-neutral-700 bg-neutral-950 px-4 py-3 focus-within:border-neutral-500">
-            <span className="text-neutral-500 select-none">{">"}</span>
+        <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/60 px-4 py-3 shadow-2xl shadow-black/25 backdrop-blur-md transition focus-within:border-green-700 focus-within:shadow-[0_0_28px_rgba(34,197,94,0.10)]">
+            <span className="select-none text-green-400">{">"}</span>
             <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}

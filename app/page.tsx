@@ -198,7 +198,7 @@ export default function Home() {
           user={user}
         />
 
-        <div className="flex w-full flex-1 overflow-hidden pt-10">
+        <div className="flex w-full flex-1 overflow-hidden pt-14">
           {sidebarOpen && (
             <Sidebar
               activeSection={activeSection}
@@ -210,11 +210,11 @@ export default function Home() {
             />
           )}
 
-          <main className="flex flex-1 flex-col bg-neutral-900/40">
-            <header className="flex items-center gap-3 border-b border-neutral-800 px-4 py-2">
+          <main className="m-3 mt-5 flex flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-black/35 shadow-2xl shadow-black/30 backdrop-blur-sm">
+            <header className="mx-3 mt-3 flex items-center gap-3 rounded-lg border border-white/10 bg-black/45 px-4 py-2 backdrop-blur-xl">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="text-neutral-400 hover:text-neutral-200"
+                className="rounded-md px-2 py-1 text-neutral-400 transition hover:bg-white/10 hover:text-neutral-100"
               >
                 ☰
               </button>
@@ -231,10 +231,10 @@ export default function Home() {
                   title={chatSoundEnabled ? "Desactivar sonido del bot" : "Activar sonido del bot"}
                   aria-label={chatSoundEnabled ? "Desactivar sonido del bot" : "Activar sonido del bot"}
                   aria-pressed={chatSoundEnabled}
-                  className={`ml-auto border px-2 py-1 text-xs transition ${
+                  className={`ml-auto rounded-md border px-2 py-1 text-xs transition ${
                     chatSoundEnabled
-                      ? "border-neutral-600 text-neutral-300 hover:border-green-700 hover:text-green-400"
-                      : "border-neutral-700 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300"
+                      ? "border-white/15 bg-black/50 text-neutral-300 hover:border-green-700 hover:text-green-300"
+                      : "border-white/10 bg-black/35 text-neutral-500 hover:border-white/20 hover:text-neutral-300"
                   }`}
                 >
                   {chatSoundEnabled ? (
@@ -262,7 +262,7 @@ export default function Home() {
 
                     <div className="relative hidden min-w-0 px-4 pt-8 xl:block">
                       <div className="bot-panel-border mx-auto w-fit">
-                        <div className="bg-neutral-950">
+                        <div className="rounded-lg bg-black/75 backdrop-blur-xl">
                           <div
                             className="p-4"
                             style={{
@@ -288,7 +288,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <footer className="border-t border-neutral-800 px-4 py-3">
+                <footer className="border-t border-white/10 px-4 py-3">
                   <div className="mx-auto w-full max-w-6xl">
                     <div className="w-full xl:max-w-[calc(100%-320px)]">
                       <ChatInput onSend={handleSend} />

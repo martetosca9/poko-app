@@ -2,7 +2,7 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #404040 transparent;
+  scrollbar-color: #3f3f46 transparent;
 }
 
 *::-webkit-scrollbar {
@@ -14,8 +14,8 @@
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: #404040;
-  border-radius: 0px;
+  background-color: #3f3f46;
+  border-radius: 8px;
 }
 
 :root {
@@ -43,6 +43,28 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.poko-surface {
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow:
+    0 18px 60px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(14px);
+}
+
+.poko-surface-soft {
+  background: rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.poko-accent-line {
+  border-color: rgba(34, 197, 94, 0.18);
+}
+
 @keyframes border-spin {
   0% { background-position: 0% 0%; }
   100% { background-position: 200% 0%; }
@@ -51,16 +73,16 @@ body {
 .bot-panel-border {
   position: relative;
   padding: 1px;
-  border-radius: 2px;
+  border-radius: 8px;
 }
 
 .bot-panel-border::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 2px;
+  border-radius: 8px;
   padding: 1px;
-  background: linear-gradient(90deg, #166534, #22c55e, #166534, #22c55e);
+  background: linear-gradient(90deg, #1e3a8a, #22c55e, #0f766e, #38bdf8);
   background-size: 200% 100%;
   animation: border-spin 3s linear infinite;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
