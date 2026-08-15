@@ -115,7 +115,7 @@ export default function Home() {
       const assistantMessage: Message = { id: nanoid(), role: "assistant", content: data.reply }
       setAnimatedMessageId(assistantMessage.id)
       setMessages(prev => [...prev, assistantMessage])
-      if (data.documentUpdated) {
+      if (data.documentUpdated || data.createdDocument) {
         setDocumentsRefreshKey(prev => prev + 1)
       }
       setBotState("talking")

@@ -415,15 +415,131 @@ async function persistDocumentUpdate(
     const document = await updateDocumentForUser(userId, title, content)
 
     const reply = document
-        ? [
-            `Guardé los cambios en el documento "${document.title}". Podés verlo en la sección Documents.`,
-            "",
-            "Contenido:",
-            content,
-        ].join("\n")
+        ? savedDocumentReply(document.title, content)
         : `No encontré un documento llamado "${title}". Revisá el título exacto en Documents.`
 
     return { reply, document, content }
+}
+
+const DOCUMENT_TOOLS = [
+    {
+        type: "function" as const,
+        function: {
+            name: "update_document",
+            description: "Reemplaza el contenido de un documento existente y lo guarda en la sección Documents. Llamá esta herramienta cuando el usuario pida rellenar, actualizar, editar o meter texto en un documento. El título debe coincidir con uno del inventario.",
+            parameters: {
+                type: "object",
+                properties: {
+                    title: { type: "string", description: "Título del documento existente" },
+                    content: { type: "string", description: "Contenido completo a guardar" },
+                },
+                required: ["title", "content"],
+            },
+        },
+    },
+    {
+        type: "function" as const,
+        function: {
+            name: "create_document",
+            description: "Crea un documento nuevo y lo guarda en Documents.",
+            parameters: {
+                type: "object",
+                properties: {
+                    title: { type: "string" },
+                    content: { type: "string" },
+                },
+                required: ["title", "content"],
+            },
+        },
+    },
+]
+
+type GroqToolCall = {
+    id?: string
+    type?: string
+    function?: {
+        name?: string
+        arguments?: string
+    }
+}
+
+function parseToolArguments(raw: string | undefined) {
+    try {
+        const parsed = JSON.parse(raw || "{}") as { title?: string; content?: string }
+        return {
+            title: typeof parsed.title === "string" ? parsed.title.trim() : "",
+            content: typeof parsed.content === "string" ? parsed.content.trim() : "",
+        }
+    } catch {
+        return { title: "", content: "" }
+    }
+}
+
+function savedDocumentReply(title: string, content: string) {
+    return [
+        `Guardé los cambios en el documento "${title}". Podés verlo en la sección Documents.`,
+        "",
+        "Contenido:",
+        content,
+    ].join("\n")
+}
+
+function claimsUnverifiedDocumentWrite(text: string) {
+    const normalized = normalize(text)
+    return (
+        /\b(guarde|actualice|rellene|edite|cree el documento|lo rellene|lo actualice|lo guarde|se ha rellenado|puedo rellenarlo|ahora se encuentra)\b/.test(normalized) ||
+        /en el documento[\s\S]{0,80}(puedo|ahora|se encuentra|se ha)/i.test(text)
+    )
+}
+
+function sanitizeUnverifiedWriteClaim(text: string) {
+    if (!claimsUnverifiedDocumentWrite(text)) return text
+
+    const body = extractDocumentBodyFromAssistantReply(text)
+    return [
+        "Todavía no guardé nada en Documents. Esto es solo texto del chat.",
+        'Si querés persistirlo, decime: "guardá esto en el documento [título]".',
+        "",
+        body || text,
+    ].join("\n")
+}
+
+async function applyDocumentTool(
+    userId: string,
+    name: string,
+    args: { title: string; content: string }
+) {
+    if (!args.title || !args.content) {
+        return { ok: false as const, reply: "Faltó título o contenido para guardar el documento." }
+    }
+
+    if (name === "create_document") {
+        const document = await createDocumentForUser(userId, args.title, args.content)
+        return {
+            ok: true as const,
+            document,
+            created: true,
+            reply: savedDocumentReply(document.title, args.content),
+        }
+    }
+
+    if (name === "update_document") {
+        const document = await updateDocumentForUser(userId, args.title, args.content)
+        if (!document) {
+            return {
+                ok: false as const,
+                reply: `No encontré un documento llamado "${args.title}". Revisá el título exacto en Documents.`,
+            }
+        }
+        return {
+            ok: true as const,
+            document,
+            created: false,
+            reply: savedDocumentReply(document.title, args.content),
+        }
+    }
+
+    return { ok: false as const, reply: "Herramienta de documento desconocida." }
 }
 
 async function generateDocumentContent(title: string, instruction: string) {
@@ -641,6 +757,7 @@ export async function POST(req: Request) {
         return NextResponse.json({
             reply,
             conversationId: conversation.id,
+            documentUpdated: true,
             createdDocument: {
                 id: document.id,
                 title: document.title,
@@ -710,9 +827,8 @@ export async function POST(req: Request) {
                     "Para responder sobre el contenido de un documento, usá Fragmentos relevantes y Vista previa del inventario.",
                     "Si respondés usando contenido de documentos, mencioná la fuente con 'Fuente: Nombre del documento'.",
                     "Si el usuario usa referencias como 'ese documento' o 'el último', inferí el referente desde los mensajes recientes y el inventario.",
-                    "NUNCA digas que rellenaste, actualizaste o guardaste un documento. Solo la app persiste cambios; vos solo respondés con texto en el chat.",
-                    "Si el usuario pide guardar contenido en un documento, decile que use verbos como rellenar/actualizar/meter/guardar y nombre el documento; los cambios aparecen en la sección Documents cuando la app confirma 'Guardé los cambios'.",
-                    "No afirmes que creaste, actualizaste, editaste o borraste un documento salvo que la app haya ejecutado una acción real y esa acción aparezca en el contexto inmediato.",
+                    "Si el usuario pide rellenar, actualizar, editar, crear o guardar un documento, DEBÉS llamar a update_document o create_document. No describas el contenido como si ya estuviera guardado.",
+                    "Nunca digas que rellenaste, actualizaste, creaste o guardaste un documento en el texto. Eso solo ocurre si llamás a una herramienta y la app confirma el guardado.",
                     "Si el inventario o los fragmentos no contienen la respuesta, decilo con claridad y no inventes.",
                     "Evitá cerrar con preguntas genéricas cuando solo estás listando o resumiendo datos.",
                     "",
@@ -736,9 +852,46 @@ export async function POST(req: Request) {
                     content: msg.content,
                 })),
         ],
+        tools: DOCUMENT_TOOLS,
+        tool_choice: "auto",
     })
 
-    const reply = completion.choices[0].message.content ?? "Sin respuesta."
+    const assistantMessage = completion.choices[0].message
+    const toolCalls = (assistantMessage.tool_calls ?? []) as GroqToolCall[]
+    const writeToolCall = toolCalls.find(call => {
+        const name = call.function?.name
+        return name === "update_document" || name === "create_document"
+    })
+
+    if (writeToolCall) {
+        const result = await applyDocumentTool(
+            session.userId,
+            writeToolCall.function?.name ?? "",
+            parseToolArguments(writeToolCall.function?.arguments)
+        )
+
+        await prisma.message.create({
+            data: {
+                conversationId: conversation.id,
+                role: "assistant",
+                content: result.reply,
+            },
+        })
+
+        return NextResponse.json({
+            reply: result.reply,
+            conversationId: conversation.id,
+            documentUpdated: result.ok,
+            updatedDocument: result.ok && !result.created
+                ? { id: result.document.id, title: result.document.title }
+                : null,
+            createdDocument: result.ok && result.created
+                ? { id: result.document.id, title: result.document.title }
+                : null,
+        })
+    }
+
+    const reply = sanitizeUnverifiedWriteClaim(assistantMessage.content ?? "Sin respuesta.")
 
     await prisma.message.create({
         data: {
