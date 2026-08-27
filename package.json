@@ -9,7 +9,7 @@
     "lint": "eslint",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
-    "db:up": "docker compose up -d db",
+    "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:status": "prisma migrate status"
   },
@@ -18,7 +18,8 @@
     "@codemirror/language": "^6.12.2",
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.40.0",
-    "@prisma/adapter-pg": "^7.4.2",
+    "@libsql/client": "^0.17.4",
+    "@prisma/adapter-libsql": "^7.10.0",
     "@prisma/client": "^7.3.0",
     "@tanstack/react-query": "^5.90.19",
     "@uiw/react-codemirror": "^4.25.8",

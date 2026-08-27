@@ -19,15 +19,14 @@ A notes and assistant app with a retro ASCII aesthetic, inspired by tools like O
 |-------|------------|
 | Frontend | Next.js 16 (App Router), React 19, Tailwind CSS 4 |
 | Backend | Next.js API Routes |
-| Database | PostgreSQL 16 + **pgvector** extension |
-| ORM | Prisma 7 (`@prisma/adapter-pg`) |
+| Database | SQLite (local file `dev.db` via `@libsql/client`) |
+| ORM | Prisma 7 (`@prisma/adapter-libsql`) |
 | AI | Groq SDK — `llama-3.3-70b-versatile` |
 | Auth | JWT (`jsonwebtoken`) + cookies |
 
 ## Requirements
 
 - [Node.js](https://nodejs.org/) 20+
-- [Docker](https://www.docker.com/) (for local PostgreSQL) or a PostgreSQL instance with pgvector
 - [Groq](https://console.groq.com/) account and API key
 
 ## Setup
@@ -45,8 +44,8 @@ npm install
 Create `.env` or `.env.local` in the project root:
 
 ```env
-# PostgreSQL (port 5433 if using this repo's docker-compose)
-DATABASE_URL="postgresql://postgres:postgres@localhost:5433/poko_app"
+# SQLite local database file
+DATABASE_URL="file:./dev.db"
 
 # Secret for signing JWTs (use a long random value in production)
 JWT_SECRET="your-jwt-secret"
@@ -57,17 +56,11 @@ GROQ_API_KEY="gsk_..."
 
 ### 3. Database
 
-Start PostgreSQL with pgvector:
+Synchronize the SQLite database and generate the Prisma client:
 
 ```bash
-docker compose up -d
-```
-
-Apply migrations and generate the Prisma client:
-
-```bash
-npx prisma migrate deploy
-npx prisma generate
+npm run db:push
+npm run prisma:generate
 ```
 
 ### 4. Development

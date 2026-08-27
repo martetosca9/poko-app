@@ -1,11 +1,9 @@
 datasource db {
-  provider   = "postgresql"
-  extensions = [vector]
+  provider = "sqlite"
 }
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["postgresqlExtensions"]
+  provider = "prisma-client-js"
 }
 
 model User {
@@ -34,15 +32,9 @@ model Message {
   id             String       @id @default(cuid())
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   conversationId String
-  role           MessageRole
+  role           String       @default("user")
   content        String
   createdAt      DateTime     @default(now())
-}
-
-enum MessageRole {
-  user
-  assistant
-  system
 }
 
 model Document {
@@ -58,19 +50,18 @@ model Document {
 }
 
 model DocumentChunk {
-  id         String                      @id @default(cuid())
+  id         String   @id @default(cuid())
   content    String
-  embedding  Unsupported("vector(768)")?
-  document   Document                    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   documentId String
   chunkIndex Int
-  createdAt  DateTime                    @default(now())
+  createdAt  DateTime @default(now())
 }
 
 model GraphNode {
   id         String      @id @default(cuid())
   label      String
-  type       NodeType
+  type       String      @default("doc")
   document   Document?   @relation(fields: [documentId], references: [id], onDelete: SetNull)
   documentId String?     @unique
   user       User        @relation(fields: [userId], references: [id])
@@ -93,10 +84,4 @@ model GraphEdge {
   createdAt DateTime  @default(now())
 
   @@unique([sourceId, targetId])
-}
-
-enum NodeType {
-  doc
-  tag
-  chat
 }

@@ -380,7 +380,7 @@ async function resolveDocumentForUser(userId: string, title: string) {
     const exact = await prisma.document.findFirst({
         where: {
             userId,
-            title: { equals: title, mode: "insensitive" },
+            title,
         },
         select: { id: true, title: true },
     })
@@ -848,7 +848,7 @@ export async function POST(req: Request) {
             ...recentMessages
                 .reverse()
                 .map(msg => ({
-                    role: msg.role,
+                    role: (msg.role === "assistant" || msg.role === "system" ? msg.role : "user") as "user" | "assistant" | "system",
                     content: msg.content,
                 })),
         ],
