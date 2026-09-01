@@ -15,7 +15,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:status": "prisma migrate status",
-    "electron:dev": "concurrently -k -n \"NEXT,ELECTRON\" -c \"blue,green\" \"next dev\" \"wait-on tcp:3000 && cross-env NODE_ENV=development electron .\"",
+    "electron:dev": "concurrently -k -n \"NEXT,ELECTRON\" -c \"blue,green\" \"next dev --port 3000\" \"wait-on -t 30000 tcp:127.0.0.1:3000 && cross-env NODE_ENV=development electron .\"",
     "electron:build:prep": "node scripts/build-desktop.js",
     "electron:pack": "npm run electron:build:prep && electron-builder --dir",
     "electron:dist": "npm run electron:build:prep && electron-builder"

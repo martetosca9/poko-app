@@ -1,3 +1,4 @@
+require("dotenv").config();
 const { app, BrowserWindow, shell, ipcMain } = require("electron");
 const path = require("path");
 const net = require("net");
@@ -21,8 +22,8 @@ function getFreePort() {
     });
 }
 
-// Wait for a URL to return a 200/300 response
-function waitForServer(url, timeoutMs = 20000) {
+// Wait for a URL to return a valid response
+function waitForServer(url, timeoutMs = 25000) {
     const start = Date.now();
     return new Promise((resolve, reject) => {
         const check = () => {
@@ -33,8 +34,12 @@ function waitForServer(url, timeoutMs = 20000) {
                 if (Date.now() - start > timeoutMs) {
                     reject(new Error("Server startup timed out"));
                 } else {
-                    setTimeout(check, 300);
+                    setTimeout(check, 400);
                 }
+            });
+            req.setTimeout(2000, () => {
+                req.destroy();
+                setTimeout(check, 400);
             });
         };
         check();
@@ -52,12 +57,22 @@ function setupProductionDatabase() {
 
     // If database doesn't exist in userData, copy template dev.db if present
     if (!fs.existsSync(targetDbPath)) {
-        const templateDbPath = path.join(process.resourcesPath || __dirname, "dev.db");
-        if (fs.existsSync(templateDbPath)) {
-            try {
-                fs.copyFileSync(templateDbPath, targetDbPath);
-            } catch (err) {
-                console.error("Failed to copy template db:", err);
+        const candidates = [
+            path.join(process.resourcesPath || "", "dev.db"),
+            path.join(process.resourcesPath || "", "app.asar.unpacked", ".next", "standalone", "dev.db"),
+            path.join(__dirname, "..", "dev.db"),
+            path.join(__dirname, "..", ".next", "standalone", "dev.db"),
+        ];
+
+        for (const templateDbPath of candidates) {
+            if (fs.existsSync(templateDbPath)) {
+                try {
+                    fs.copyFileSync(templateDbPath, targetDbPath);
+                    console.log("Copied initial database template to:", targetDbPath);
+                    break;
+                } catch (err) {
+                    console.error("Failed to copy template db:", err);
+                }
             }
         }
     }
@@ -70,6 +85,7 @@ async function startProductionServer(port) {
 
     const env = {
         ...process.env,
+        ELECTRON_RUN_AS_NODE: "1",
         NODE_ENV: "production",
         PORT: String(port),
         HOSTNAME: "127.0.0.1",
@@ -80,7 +96,6 @@ async function startProductionServer(port) {
         env.JWT_SECRET = "poko-desktop-local-secret-" + app.getPath("userData");
     }
 
-    // Path to Next.js standalone server
     const candidates = [
         path.join(process.resourcesPath || "", "app.asar.unpacked", ".next", "standalone", "server.js"),
         path.join(__dirname, "..", ".next", "standalone", "server.js"),
@@ -93,6 +108,8 @@ async function startProductionServer(port) {
         throw new Error(`Standalone server not found at: ${serverPath}`);
     }
 
+    console.log("Starting standalone server from:", serverPath);
+
     serverProcess = fork(serverPath, [], {
         env,
         stdio: "inherit",
@@ -100,7 +117,7 @@ async function startProductionServer(port) {
     });
 
     serverProcess.on("error", (err) => {
-        console.error("Next.js server error:", err);
+        console.error("Next.js server process error:", err);
     });
 
     await waitForServer(`http://127.0.0.1:${port}`);
@@ -126,10 +143,10 @@ async function createWindow() {
     let targetUrl;
 
     if (isDev) {
-        targetUrl = "http://localhost:3000";
+        targetUrl = "http://127.0.0.1:3000";
         console.log("Connecting to Next.js development server at", targetUrl);
-        await waitForServer(targetUrl, 30000).catch(() => {
-            console.warn("Dev server not ready yet, loading anyway...");
+        await waitForServer(targetUrl, 30000).catch((err) => {
+            console.warn("Dev server check timed out, attempting loadURL anyway...", err);
         });
     } else {
         const port = await getFreePort();
@@ -137,6 +154,16 @@ async function createWindow() {
         await startProductionServer(port);
         targetUrl = `http://127.0.0.1:${port}`;
     }
+
+    // Handle load failures gracefully with retry
+    mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL) => {
+        console.warn(`Load failed for ${validatedURL} (${errorCode}: ${errorDescription}). Retrying in 1.5s...`);
+        setTimeout(() => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.loadURL(targetUrl);
+            }
+        }, 1500);
+    });
 
     mainWindow.loadURL(targetUrl);
 
