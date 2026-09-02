@@ -111,6 +111,8 @@ poko-app/
 | `GET` | `/api/auth/me` | Current user |
 | `GET` / `POST` | `/api/documents` | List / create documents |
 | `GET` / `PATCH` / `DELETE` | `/api/documents/[id]` | Read / update / delete |
+| `GET` | `/api/conversations` | List user chat conversations |
+| `GET` / `DELETE` | `/api/conversations/[id]` | Load / delete conversation and messages |
 | `GET` | `/api/graph` | User graph data |
 | `POST` | `/api/chat` | Message to assistant |
 

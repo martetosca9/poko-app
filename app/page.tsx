@@ -158,6 +158,13 @@ export default function Home() {
     }
   }
 
+  function handleDeleteConversation(deletedId: string) {
+    if (conversationId === deletedId) {
+      handleNewConversation()
+    }
+    setConversationsRefreshKey(key => key + 1)
+  }
+
   function handleLogout() {
     fetch("/api/auth/logout", { method: "POST" })
     setAuthed(false)
@@ -207,6 +214,7 @@ export default function Home() {
               documentsRefreshKey={documentsRefreshKey}
               onNewConversation={handleNewConversation}
               onSelectConversation={handleSelectConversation}
+              onDeleteConversation={handleDeleteConversation}
             />
           )}
 

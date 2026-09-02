@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 type Props = {
     activeSection: "chat" | "docs" | "graph" | "profile";
@@ -13,6 +13,7 @@ type Props = {
     onNewConversation?: () => void;
     onNewDocument?: () => void;
     onSelectConversation?: (id: string) => void;
+    onDeleteConversation?: (id: string) => void;
 };
 
 type Doc = { id: string; title: string }
@@ -26,7 +27,8 @@ export default function Sidebar({
     documentsRefreshKey = 0,
     onNewConversation,
     onNewDocument,
-    onSelectConversation
+    onSelectConversation,
+    onDeleteConversation
 }: Props) {
     const router = useRouter()
     const [docs, setDocs] = useState<Doc[]>([])
@@ -43,6 +45,18 @@ export default function Sidebar({
             .then(data => setChats(data.conversations ?? []))
             .catch(() => {})
     }, [conversationsRefreshKey, documentsRefreshKey])
+
+    async function handleDeleteChat(id: string, e: React.MouseEvent) {
+        e.stopPropagation()
+        try {
+            const res = await fetch(`/api/conversations/${id}`, { method: "DELETE" })
+            if (!res.ok) return
+            setChats(prev => prev.filter(c => c.id !== id))
+            onDeleteConversation?.(id)
+        } catch (err) {
+            console.error("Failed to delete conversation:", err)
+        }
+    }
 
     return (
         <aside className="m-3 mt-5 flex w-60 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/55 shadow-2xl shadow-black/35 backdrop-blur-xl">
@@ -67,17 +81,30 @@ export default function Sidebar({
                             <p className="px-4 py-3 text-xs text-neutral-600">No chats yet</p>
                         )}
                         {chats.map(chat => (
-                            <button
+                            <div
                                 key={chat.id}
-                                onClick={() => onSelectConversation?.(chat.id)}
-                                className={`mx-2 my-1 w-[calc(100%-1rem)] truncate rounded-md px-3 py-2 text-left text-xs transition ${
+                                className={`group mx-2 my-1 flex items-center justify-between rounded-md transition ${
                                     chat.id === activeConversationId
                                         ? "bg-white/10 text-green-300 shadow-[0_0_18px_rgba(34,197,94,0.10)]"
                                         : "text-neutral-400 hover:bg-white/10 hover:text-neutral-100"
                                 }`}
                             >
-                                {chat.title ?? "Untitled chat"}
-                            </button>
+                                <button
+                                    type="button"
+                                    onClick={() => onSelectConversation?.(chat.id)}
+                                    className="min-w-0 flex-1 truncate px-3 py-2 text-left text-xs"
+                                >
+                                    {chat.title ?? "Untitled chat"}
+                                </button>
+                                <button
+                                    type="button"
+                                    title="Delete chat"
+                                    onClick={(e) => handleDeleteChat(chat.id, e)}
+                                    className="mr-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 opacity-0 transition hover:bg-red-950/60 hover:text-red-400 group-hover:opacity-100"
+                                >
+                                    <Trash2 size={12} strokeWidth={1.8} />
+                                </button>
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -160,13 +187,30 @@ export default function Sidebar({
                                 <p className="px-4 py-3 text-xs text-neutral-600">No chats yet</p>
                             )}
                             {chats.map(chat => (
-                                <button
+                                <div
                                     key={chat.id}
-                                    onClick={() => onSelectConversation?.(chat.id)}
-                                    className="mx-2 my-1 w-[calc(100%-1rem)] truncate rounded-md px-3 py-2 text-left text-xs text-neutral-400 transition hover:bg-white/10 hover:text-neutral-100"
+                                    className={`group mx-2 my-1 flex items-center justify-between rounded-md transition ${
+                                        chat.id === activeConversationId
+                                            ? "bg-white/10 text-green-300 shadow-[0_0_18px_rgba(34,197,94,0.10)]"
+                                            : "text-neutral-400 hover:bg-white/10 hover:text-neutral-100"
+                                    }`}
                                 >
-                                    {chat.title ?? "Untitled chat"}
-                                </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => onSelectConversation?.(chat.id)}
+                                        className="min-w-0 flex-1 truncate px-3 py-2 text-left text-xs"
+                                    >
+                                        {chat.title ?? "Untitled chat"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        title="Delete chat"
+                                        onClick={(e) => handleDeleteChat(chat.id, e)}
+                                        className="mr-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 opacity-0 transition hover:bg-red-950/60 hover:text-red-400 group-hover:opacity-100"
+                                    >
+                                        <Trash2 size={12} strokeWidth={1.8} />
+                                    </button>
+                                </div>
                             ))}
                         </div>
                     </div>
